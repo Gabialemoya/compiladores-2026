@@ -5,7 +5,7 @@
 | Nombre        | Legajo |
 | ------------- | ------ |
 | Gabriela Moya | 5372      |
-| Rocio Pepek   | 1234      |
+| Rocio Pepek   | 5340      |
 
 ## TP asignado
 
