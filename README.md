@@ -2,10 +2,10 @@
 
 ## Integrantes
 
-| Nombre        | Legajo | Rol |
-| ------------- | ------ | --- |
-| Gabriela Moya | —      | —   |
-| Rocio Pepek   | —      | —   |
+| Nombre        | Legajo |
+| ------------- | ------ |
+| Gabriela Moya | 5372      |
+| Rocio Pepek   | 1234      |
 
 ## TP asignado
 
@@ -123,6 +123,18 @@ Además de la batería obligatoria indicada en las Consignas Generales, deben en
 
 ## Lenguaje
 
-* **Lenguaje fuente:** RG
-* **Lenguaje de implementación:** C
-* **Arquitectura destino:** —
+- **Lenguaje fuente:** RG
+- **Lenguaje de implementación:** C
+- **Analizador léxico:** manual (`yylex`), tablas según `specs/01-diseno` y `specs/03-analizador-lexico`
+- **Analizador sintáctico:** YACC/Bison (entrega 2)
+- **Arquitectura destino:** —
+
+## Cómo compilar
+
+```
+```
+
+## Cómo ejecutar
+
+```
+```
