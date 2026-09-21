@@ -125,7 +125,7 @@ Además de la batería obligatoria indicada en las Consignas Generales, deben en
 
 - **Lenguaje fuente:** RG
 - **Lenguaje de implementación:** C
-- **Analizador léxico:** manual (`yylex`), tablas según `specs/01-diseno` y `specs/03-analizador-lexico`
+- **Analizador léxico:** manual (etapa 1: listado de tokens; etapa 2: `yylex`), tablas según `specs/01-diseno` y `specs/03-analizador-lexico`
 - **Analizador sintáctico:** YACC/Bison (entrega 2)
 - **Arquitectura destino:** —
 
