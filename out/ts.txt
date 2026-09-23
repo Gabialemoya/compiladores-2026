@@ -1,0 +1,7 @@
+NOMBRE | TIPO | VALOR | LONGITUD
+a | racional |  | 1
+b | racional |  | 1
+c | racional |  | 1
+1/2 | racional | 1/2 | 3
+1/3 | racional | 1/3 | 3
+Resultado | cadena | Resultado | 9
