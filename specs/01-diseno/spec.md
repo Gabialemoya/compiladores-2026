@@ -324,14 +324,15 @@ Tabla de símbolos: nombre, tipo, valor (constantes) y longitud. Se exporta a ar
 | E1 | Carácter fuera del alfabeto | Léxico |
 | E2 | Constante mal formada (`3/`, entero suelto `4`) | Léxico |
 | E3 | Denominador cero en literal (`5/0`) | Léxico |
-| E4 | Sentencia mal formada | Sintáctico |
-| E5 | Variable no declarada (R1) | Semántico |
-| E6 | Variable redeclarada (R2) | Semántico |
-| E7 | Denominador cero producido por una expresión (D6) | Ejecución |
-| E8 | Recursión directa (R7 / D13) | Semántico |
+| E4 | Cadena mal formada (carácter no admitido dentro de la cadena) | Léxico |
+| E5 | Sentencia mal formada | Sintáctico |
+| E6 | Variable no declarada (R1) | Semántico |
+| E7 | Variable redeclarada (R2) | Semántico |
+| E8 | Denominador cero producido por una expresión (D6) | Ejecución |
+| E9 | Recursión directa (R7 / D13) | Semántico |
 | A1 | Pérdida de precisión por overflow (D9) — advertencia | Ejecución |
 
-Ninguno de E1 a E6 ni E8 aborta la compilación: se registran y se sigue leyendo.
+Ninguno de E1 a E7 ni E9 aborta la compilación: se registran y se sigue leyendo.
 
 ---
 
@@ -487,7 +488,7 @@ main() {
 }
 ```
 
-#### E-S1 — Sentencia mal formada (E4)
+#### E-S1 — Sentencia mal formada (E5)
 
 ```
 main() {
@@ -500,8 +501,7 @@ main() {
 
 ### 13.3 Errores semánticos
 
-#### E-M1 — Redeclaración y variable no declarada (E5, E6)
-
+#### E-M1 — Redeclaración y variable no declarada (E6, E7)
 ```
 main() {
     var a;
@@ -511,7 +511,7 @@ main() {
 }
 ```
 
-#### E-M2 — Recursión directa (E8)
+#### E-M2 — Recursión directa (E9)
 
 ```
 f(x) {
