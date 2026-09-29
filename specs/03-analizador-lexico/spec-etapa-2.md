@@ -1,408 +1,321 @@
-# Especificación Etapa 2 — Función `yylex()`
+# Spec — Analizador léxico de RG (etapa 2: `yylex`)
 
-**Lenguaje RG — Grupo F — Desarrollo de Compiladores (UNO)**
+**Depende de:** `specs/01-diseno/spec.md` · `specs/02-tabla-simbolos/spec.md` · `[spec-etapa-1.md](spec-etapa-1.md)`
+**Produce:** `src/lexico/`
 
-> Alcance de este documento: únicamente la adaptación del analizador léxico de la etapa 1 para que pueda ser invocado por el analizador sintáctico. Las reglas gramaticales, las acciones y el manejo de conflictos se especifican en un documento aparte.
+Convierte el AL de la etapa 1 en la función `int yylex(void)` que invoca el analizador sintáctico.
 
 ---
 
-## 1. Objetivo
+## 1. Alcance e interfaz
 
-En la etapa 1 el analizador léxico era un programa autónomo: recorría el archivo completo en un bucle propio y emitía el listado de tokens. En la etapa 2 deja de ser un programa y pasa a ser un **servicio** que el analizador sintáctico consume.
+### 1.1 Objetivo
 
-La inversión del control es el cambio conceptual central:
+En la etapa 1 el AL controlaba el recorrido: abría el fuente y lo consumía entero en un bucle propio. En esta etapa **deja de controlar el recorrido**: el analizador sintáctico llama a `yylex()` y recibe **un token por llamada**.
+
+El autómata no cambia. Cambia quién lo invoca.
 
 | | Etapa 1 | Etapa 2 |
 | --- | --- | --- |
-| Quién controla el bucle | El léxico | El sintáctico (`yyparse`) |
-| Cómo se recorre el fuente | Un bucle `while` propio | Una llamada por token |
-| Qué produce | Un listado impreso | Un valor de retorno por llamada |
-| Función de entrada | `main()` | `yylex()` |
+| Controla el bucle | El AL | `yyparse` |
+| Entrada del programa | `main` del AL | `yyparse`, desde el `main` del parser |
+| Salida | Listado de tokens | Un código de token por llamada |
+| Fin de archivo | Termina el listado | Retorna `0` |
 
-El analizador léxico no decide cuándo leer: responde cuando el parser pide el token siguiente.
+### 1.2 Entrada
+
+- El fuente ya abierto por el `main` del parser, antes de la primera llamada.
+- Fallo de apertura: error de I/O, no error léxico; no se llama a `yyparse`.
+
+### 1.3 Salida
+
+1. **Valor de retorno**: el código de token que espera el parser (§3).
+2. **`yylval`** cargado para `ID`, `CTE` y `CADENA` (§4).
+3. **Informe de errores léxicos** E1–E4, sin abortar (§9).
+4. **Listado de tokens** en `out/`, conservado para contrastar contra la etapa 1.
+5. **Tabla de símbolos** exportada al terminar `yyparse` (contrato de spec 02).
+
+### 1.4 Fuera de alcance
+
+- Reglas gramaticales, acciones del parser y resolución de conflictos.
+- Semántica (R1, R2, R7).
+- Todo lo ya especificado en `[spec-etapa-1.md](spec-etapa-1.md)`: eventos, estados, matrices y acciones semánticas se reutilizan sin cambios.
+
+### 1.5 Responsabilidades del reconocedor
+
+- Reconocer **un** token por llamada y retornarlo.
+- Retornar `0` al llegar a EOF.
+- Ante error léxico: informar, recuperar y **seguir buscando** un token válido. Nunca retornar un código que no sea un token del lenguaje.
+- Proveer `yyerror` al parser.
+- Mantener accesible el contador de línea.
 
 ---
 
-## 2. Contrato con el analizador sintáctico
+## 2. Decisiones propias de esta fase
 
-`yylex()` debe cumplir exactamente esta firma y este comportamiento:
+| # | Decisión | Valor |
+| --- | --- | --- |
+| Y1 | Códigos de token | Los declara el generador. `yylex` retorna las constantes de `parser.tab.h` |
+| Y2 | Códigos de `01-diseno` §4 | Se conservan como numeración del lenguaje: documentación, listado y campo `TIPO` de la TS |
+| Y3 | Puente entre ambas | Una única función `traducir_token` (§3) |
+| Y4 | Valor semántico | Índice en la tabla de símbolos, no el lexema |
+| Y5 | Error léxico | `continue`, nunca `return`. El parser no recibe códigos de error |
+| Y6 | Unread ante error | Se agrega: el carácter que provoca el error vuelve al flujo (§8) |
+| Y7 | Normalización de racionales | En `fin_cte`, antes del alta en TS (§6) |
+| Y8 | Cadenas | Sin cambios: solo letras, según L4 y §10 de la etapa 1 |
+| Y9 | Errores derivados | Se informan ambos: el léxico y el sintáctico que provoca (§13, a consultar con la cátedra) |
 
-```c
-int yylex(void);
+---
+
+## 3. Códigos de token
+
+Los valores `1`–`255` están reservados para caracteres literales y el `0` para el fin de entrada, así que los códigos de `01-diseno` §4 (10 a 300) no sirven como valor de retorno.
+
+Declarar los tokens en la gramática sin número y retornar las constantes generadas:
+
 ```
-
-| Aspecto | Requisito |
-| --- | --- |
-| Valor de retorno | Código del token reconocido |
-| Fin de archivo | Retornar `0`. Es el valor que `yyparse` interpreta como fin de entrada |
-| Error léxico | No retornar el código de error al parser. Reportar, recuperar y seguir buscando un token válido |
-| Valor semántico | Cargar `yylval` **antes** de retornar |
-| Reentrada | Cada llamada continúa la lectura donde terminó la anterior. El estado del archivo es global |
-
-Además, el analizador sintáctico requiere que el léxico provea:
-
-- `yyerror(const char* msg)`: función que el parser invoca al detectar un error sintáctico. Debe imprimir el mensaje junto con el número de línea.
-- Número de línea accesible desde el parser, para ubicar los errores.
-
----
-
-## 3. Codificación de los tokens
-
-**Este es el punto que más impacta y conviene resolver primero.**
-
-El generador de parsers produce sus propias constantes de token en el archivo de cabecera (`parser.tab.h`), a partir de las declaraciones `%token` de la gramática. El analizador léxico debe retornar **esos** valores, no los códigos 10, 20, 30 definidos en la etapa 1.
-
-El motivo: los valores de 1 a 255 están reservados para representar caracteres literales, y el 0 está reservado para el fin de entrada. Los códigos actuales de RG van de 10 a 300, así que quedan dentro del rango reservado, salvo `CADENA`.
-
-**Decisión tomada: opción A.** Declarar los tokens en la gramática sin número y dejar que el generador asigne los valores. El léxico incluye `parser.tab.h` y retorna las constantes simbólicas:
-
-```c
 #include "parser.tab.h"
 ...
-if (strcmp(lexema, "if") == 0) return IF;
+return traducir_token(token_actual);
 ```
 
-Los códigos didácticos 10 a 300 se conservan solo para el listado y la tabla de símbolos, mediante una función de traducción.
+`traducir_token` es el **único** lugar del programa donde conviven las dos numeraciones:
 
-Los códigos didácticos dejan de usarse como valor de retorno, pero no desaparecen: siguen siendo la numeración oficial del lenguaje en la documentación, en el listado de tokens y en la columna `TIPO` de la tabla de símbolos. La traducción entre ambas numeraciones se concentra en una única función:
-
-```c
-/* Traduce el codigo interno del lexico (10, 20, 30...) al codigo que espera
-   el parser. Es el unico lugar del programa donde conviven las dos
-   numeraciones. */
-int traducir_token(int codigo_interno) {
-    switch (codigo_interno) {
-        case 10:  return ID;
-        case 20:  return CTE;
-        case 30:  return OP_ASIG;
-        /* ... una entrada por token ... */
-        case 300: return CADENA;
-        default:  return 0;
-    }
-}
+```
+int traducir_token(int codigo_interno):
+    10  -> ID
+    20  -> CTE
+    30  -> OP_ASIG
+    ...
+    300 -> CADENA
 ```
 
-**Alternativa descartada.** Asignar explícitamente los números en la gramática, arriba de 257, y renumerar todo el lenguaje. Mantiene una única numeración, pero obliga a rehacer la tabla de tokens, la matriz de tokens y la documentación de la etapa 1.
+Fin de entrada: `yylex` retorna `0`. **No** existe un token `EOF` en el lenguaje.
 
 ---
 
 ## 4. Valor semántico (`yylval`)
 
-El código del token dice **qué** se reconoció; el valor semántico dice **cuál**. Sin él, el parser sabe que llegó un `ID` pero no cuál identificador.
+El código dice **qué** se reconoció; `yylval` dice **cuál**.
 
-Tres tokens necesitan valor semántico:
-
-| Token | Valor a transmitir |
+| Token | `yylval` |
 | --- | --- |
-| `ID` | Índice del identificador en la tabla de símbolos |
-| `CTE` | Índice de la constante en la tabla de símbolos |
-| `CADENA` | Índice de la cadena en la tabla de símbolos |
-
-El resto de los tokens no lleva valor: el código ya los identifica por completo.
-
-Se propone transmitir el **índice de la tabla de símbolos** y no el lexema, para evitar copias de cadenas y porque la etapa siguiente va a necesitar ese índice de todos modos.
+| `ID` | Índice en TS |
+| `CTE` | Índice en TS |
+| `CADENA` | Índice en TS |
+| Resto | No se carga |
 
 Declaración en la gramática:
 
 ```
-%union {
-    int indice_ts;
-}
+%union { int indice_ts; }
 %token <indice_ts> ID CTE CADENA
 ```
 
-Carga en el léxico, dentro de la acción de cierre correspondiente:
+Cargar `yylval` dentro de `fin_id`, `fin_cte` y `fin_cadena`, antes de retornar.
 
-```c
-yylval.indice_ts = insertar_ts_id(lexema);
-```
-
-**Cambio requerido en el código actual.** Las funciones `insertar_ts_id`, `insertar_ts_cte` e `insertar_ts_cadena` son `void`. Modificar las tres para que devuelvan el índice de la entrada, tanto si la insertan como si ya existía.
+**Cambio requerido en spec 02:** las altas en TS son `void`. Devolver el índice de la entrada, tanto si se inserta como si ya existía.
 
 ---
 
-## 5. Cambios sobre el código de la etapa 1
+## 5. Cambios sobre la etapa 1
 
-### 5.1. Qué se conserva sin modificar
-
-- Las tres matrices: `nuevo_estado`, `proceso` y `token_por_estado`.
-- Las acciones semánticas de acumulación: `inicio_id`, `continuar_id`, `inicio_cte`, `continuar_cte`, `inicio_cadena`, `continuar_cadena`, `nada`.
-- La función de clasificación `get_evento`.
-- La estructura y las funciones de la tabla de símbolos, salvo el valor de retorno indicado en la sección 4.
-- El mecanismo de retroceso con `ungetc`.
-
-El autómata no cambia: cambia quién lo invoca.
-
-### 5.2. Qué se transforma
-
-| Elemento actual | Transformación |
+| Elemento | Qué pasa |
 | --- | --- |
-| `int reconocer_token(void)` | Pasa a ser el cuerpo de `int yylex(void)` |
-| `return 1` al cerrar un token | Pasa a `return <código del token>` |
-| `return 0` al llegar a EOF | Se mantiene: es el valor que espera el parser |
-| `agregar_token_listado(...)` | Se mantiene, pero como registro opcional, no como salida principal |
-| `main()` del léxico | Se elimina. El `main` pasa al programa del parser |
-| Apertura del archivo fuente | Se traslada al `main` del parser, antes de llamar a `yyparse()` |
-
-### 5.3. Qué se agrega
-
-- `yyerror(const char* msg)`.
-- El archivo de cabecera `lexico.h` con los prototipos que el parser necesita.
-- La función `traducir_token`, según la decisión de la sección 3.
-- La normalización de las constantes racionales, detallada en la sección 5.4.
-
-### 5.4. Normalización de las constantes racionales
-
-La función `fin_cte` registra la constante tal como fue escrita, de modo que `2/4` y `1/2` generan dos entradas distintas en la tabla de símbolos pese a representar el mismo valor.
-
-Normalizar en el analizador léxico, por dos motivos:
-
-- El caso de prueba F.6 exige que un resultado simplificable se muestre normalizado.
-- Sin normalizar, la tabla de símbolos duplica entradas y la comparación de constantes en las etapas siguientes deja de ser directa.
-
-Aplicar dos operaciones sobre el par numerador y denominador, después de validar que el denominador no sea cero y antes de insertar en la tabla:
-
-1. **Signo.** Si el denominador es negativo, invertir el signo de ambos, de modo que el signo quede siempre en el numerador.
-2. **Simplificación.** Dividir numerador y denominador por su máximo común divisor.
-
-```c
-/* Maximo comun divisor por el algoritmo de Euclides. */
-long long mcd(long long a, long long b) {
-    if (a < 0) a = -a;
-    if (b < 0) b = -b;
-    while (b != 0) {
-        long long t = b;
-        b = a % b;
-        a = t;
-    }
-    return a;
-}
-```
-
-Dentro de `fin_cte`, entre la validación del denominador y la inserción:
-
-```c
-if (den < 0) { num = -num; den = -den; }   /* Signo siempre en el numerador */
-long long d = mcd(num, den);
-if (d > 1) { num /= d; den /= d; }
-```
-
-Casos que resuelve: `2/4` queda `1/2`, `0/5` queda `0/1`, `3/-6` queda `-1/2`.
-
-El lexema original se pierde en la tabla de símbolos, que pasa a guardar la forma normalizada. Es el comportamiento buscado, dado que la tabla representa el valor y no el texto.
+| `nuevo_estado`, `proceso`, matriz de tokens | Sin cambios |
+| `get_evento` | Sin cambios |
+| Acciones de acumulación | Sin cambios |
+| `fin_id`, `fin_cte`, `fin_cadena` | Cargan `yylval` |
+| `fin_cte` | Suma la normalización de §6 |
+| `reconocer_token()` | Pasa a ser el cuerpo de `yylex()` |
+| `return 1` al cerrar token | Pasa a `return traducir_token(...)` |
+| `return 0` en EOF | Se mantiene: es lo que espera el parser |
+| `main` del AL | Se elimina. El `main` pasa al parser |
+| Apertura del fuente | Se traslada al `main` del parser |
+| — | Se agrega `yyerror` (§9) |
 
 ---
 
-## 6. Estructura de archivos
+## 6. Normalización de racionales
+
+`fin_cte` registra la constante tal como fue escrita, de modo que `2/4` y `1/2` generan dos entradas de TS para el mismo valor. D9 y el caso F.6 exigen mostrar los resultados simplificados.
+
+Aplicar en `fin_cte`, después de validar el denominador y antes del alta:
+
+1. **Signo.** Si el denominador es negativo, invertir el signo de ambos.
+2. **Simplificación.** Dividir ambos por su máximo común divisor (Euclides).
+
+| Entrada | En TS |
+| --- | --- |
+| `2/4` | `1/2` |
+| `0/5` | `0/1` |
+| `3/-6` | `-1/2` |
+
+La TS guarda la forma normalizada, no el lexema original.
+
+---
+
+## 7. Pseudocódigo
 
 ```
-lexico.h        prototipos de yylex, yyerror y la tabla de simbolos
-lexico.c        matrices, acciones semanticas y yylex()
-tabla_simbolos.c  (opcional) la tabla de simbolos separada
-parser.y        gramatica, declaraciones %token y main()
+yylex():
+    estado = 0
+    mientras verdadero
+        leer(c)
+        si EOF
+            si estado == 0 o estado == 10: retornar 0
+            columna = SPACE            /* fuerza el cierre del último token */
+        si no
+            columna = get_evento(c)
+            si columna inválida
+                informar E1 con línea
+                estado = 0; continuar   /* NO retornar */
+        (*proceso[estado][columna])()
+        nuevo = nuevo_estado[estado][columna]
+        si nuevo == -2
+            informar el error según el estado
+            unget(c)                    /* §8 */
+            estado = 0; continuar       /* NO retornar */
+        si nuevo == -1
+            si corresponde unread: unget(c)
+            si el token se canceló: estado = 0; continuar
+            cargar yylval si el token lo requiere
+            agregar {token} al listado
+            retornar traducir_token(token)
+        estado = nuevo
 ```
 
-Secuencia de compilación:
+Conductor:
+
+```
+main:
+    si fopen del fuente falla: error de apertura; salir
+    yyparse()
+    fclose
+    si no hubo errores
+        printf(" - Compilacion EXITOSA - ")
+    si no
+        printf(" - Compilacion completa con ERRORES - ")
+    mostrarTS()
+```
+
+Los tres `continuar` son la diferencia estructural con la etapa 1: ante un error, `yylex` **no retorna**.
+
+---
+
+## 8. Unreads
+
+Se mantiene el criterio de `01-diseno` §10, con las dos excepciones conocidas:
+
+| Caso | Unread |
+| --- | --- |
+| Cierre por columna "otro" | Sí |
+| Comilla de cierre (estado 21, col. 14) | No: pertenece al lexema |
+| EOL del comentario (estado 10) | No: se consume como cierre |
+| EOF | No |
+
+**Corrección respecto de la etapa 1.** La rama `-2` no hacía unread: el carácter que provocaba el error quedaba consumido. Con `n = 0;` el listado salía `ID OP_ASIG WRITE`, sin el `PUNTO_Y_COMA`.
+
+En la etapa 1 eso solo ensuciaba el listado. Con el parser en línea, el sintáctico recibe una sentencia sin terminar y emite un E5 que el fuente no contiene: **una causa, dos errores**. Agregar el unread en la rama `-2`, decrementando el contador de línea si el carácter es EOL.
+
+No genera bucle: el carácter se relee desde el estado 0, y la fila 0 no tiene celdas `-2`.
+
+---
+
+## 9. Errores
+
+### 9.1 Léxicos
+
+Los mismos de la etapa 1, sin agregados:
+
+| Código | Condición |
+| --- | --- |
+| E1 | `get_evento` sin columna, o carácter inválido en estado 0 |
+| E2 | Estado 1 sin `/`, o estado 2 sin dígito |
+| E3 | `fin_cte` con denominador 0 |
+| E4 | Estado 21 y no-letra (salvo `"`) |
+
+Un error no entrega token al parser ni agrega token ficticio al listado.
+
+### 9.2 Sintácticos
+
+`yyerror(const char* msg)` la provee esta fase; la invoca el parser. Informa **E5** (`01-diseno` §12) con la línea, y levanta la bandera de error. El contador de línea ya es global, así que no requiere trabajo adicional.
+
+Ninguno de los dos aborta la compilación (consigna general 14).
+
+---
+
+## 10. Estructura y compilación
+
+```
+src/lexico/lexico.h     prototipos de yylex, yyerror y altas en TS
+src/lexico/lexico.c     matrices, acciones semánticas, yylex
+src/parser/parser.y     gramática, %token, %union y main
+```
 
 ```
 bison -d parser.y          genera parser.tab.c y parser.tab.h
 gcc parser.tab.c lexico.c -o compilador
 ```
 
-`lexico.c` incluye `parser.tab.h` para conocer las constantes de token. La dependencia es en un solo sentido: el léxico conoce los códigos del parser, el parser no conoce el interior del léxico.
+`lexico.c` incluye `parser.tab.h`. La dependencia es en un solo sentido: el léxico conoce los códigos del parser; el parser no conoce el interior del léxico.
+
+Rutas de salida relativas (`out/`). El código de la etapa 1 tiene rutas absolutas que impiden compilarlo en otro equipo.
 
 ---
 
-## 7. Pseudocódigo de `yylex()`
+## 11. Casos de prueba de esta fase
 
-```
-funcion yylex() -> entero
-
-    estado = 0
-    token_actual = -1
-    cancelar_token = 0
-
-    repetir
-
-        leer caracter
-        si es fin de linea, incrementar contador de linea
-
-        si es fin de archivo:
-            si estado = 0 o estado = 10:
-                retornar 0            // fin de entrada para el parser
-            sino:
-                columna = SPACE       // fuerza el cierre del ultimo token
-
-        sino:
-            columna = clasificar(caracter)
-            si columna = -1:
-                reportar error E1
-                estado = 0
-                continuar             // NO retornar: seguir buscando token valido
-
-        ejecutar accion semantica [estado][columna]
-        destino = nuevo_estado[estado][columna]
-
-        si destino = -2:
-            reportar el error segun el estado
-            devolver el caracter al flujo
-            estado = 0
-            continuar                 // NO retornar
-
-        si destino = -1:
-            devolver el caracter al flujo, salvo las excepciones de la seccion 9
-            si cancelar_token:
-                cancelar_token = 0
-                estado = 0
-                continuar
-            si token_actual = -1:
-                token_actual = token_por_estado[estado]
-            cargar yylval si el token lo requiere
-            registrar en el listado
-            retornar traducir(token_actual)
-
-        estado = destino
-
-    fin repetir
-```
-
-La diferencia estructural respecto de la etapa 1 está en los `continuar`: ante un error, la función **no retorna**. Sigue leyendo hasta encontrar un token válido o el fin del archivo. El parser nunca debe recibir un código que no corresponda a un token del lenguaje.
-
----
-
-## 8. Manejo de errores
-
-### 8.1. Errores léxicos
-
-Se reportan por pantalla igual que en la etapa 1, con código y número de línea, y el análisis continúa. El token erróneo no se entrega al parser.
-
-**Consecuencia a documentar:** ante un error léxico, el parser recibe una secuencia incompleta y probablemente reporte además un error sintáctico derivado. Definir si en el informe final se muestran ambos o solo el primero.
-
-**Corrección pendiente de la etapa 1: el carácter que provoca el error se pierde.**
-
-En la rama de cierre de token (`destino = -1`) el código devuelve al flujo el carácter que cerró el token, mediante `ungetc`. En la rama de error (`destino = -2`) no lo hace: ejecuta `estado = 0; continue;` y el carácter queda consumido.
-
-Ejemplo con `n = 0;`, que en RG es un error porque toda constante debe escribirse como racional. La secuencia de tokens emitida es:
-
-```
-ID  OP_ASIG  WRITE  ...
-```
-
-El punto y coma desapareció junto con el error. Al leerlo estando en el estado 1, el autómata fue a error y descartó el carácter, de modo que nunca se reconoció como `PUNTO_Y_COMA`.
-
-En la etapa 1 esto solo ensuciaba el listado. Con el parser en línea, el analizador sintáctico recibe `n = write` y reporta un error de sintaxis que no existe en el programa fuente: el usuario ve dos errores por una sola causa.
-
-Corregir agregando el retroceso en la rama de error, con las mismas precauciones que en la rama de cierre:
-
-```c
-if (c_actual != EOF) {
-    ungetc(c_actual, archivo);
-    if (c_actual == '\n') linea_actual--;
-}
-```
-
-Con la corrección aplicada, la secuencia pasa a ser:
-
-```
-ID  OP_ASIG  PUNTO_Y_COMA  WRITE  ...
-```
-
-El error léxico se sigue reportando, pero el parser recibe la sentencia completa y no encadena un error propio.
-
-No genera bucle infinito: el carácter devuelto se vuelve a leer desde el estado 0, y la fila 0 de la matriz de transiciones no tiene ninguna celda de error.
-
-### 8.2. Errores sintácticos
-
-`yyerror` es invocada por el parser. Implementación mínima:
-
-```c
-void yyerror(const char* msg) {
-    printf("Error sintactico en linea %d: %s\n", linea_actual, msg);
-    hubo_error = 1;
-}
-```
-
-El contador de línea ya existe y es global, así que no requiere trabajo adicional.
-
-### 8.3. Unificación de códigos
-
-La numeración de errores del código actual no coincide con la de la especificación de la etapa 1: el código usa E2 para constante mal formada, E3 para denominador cero y E4 para cadena, mientras que el documento define E2 como falta de dígito, E3 como constante sin barra y E4 como denominador cero. Unificar antes de continuar, en cualquiera de los dos sentidos.
-
----
-
-## 9. Retroceso de caracteres
-
-Se mantiene el criterio de la etapa 1: al cerrar un token se devuelve al flujo el carácter que lo cerró, con dos excepciones.
-
-| Excepción | Motivo |
+| Caso | Qué verifica |
 | --- | --- |
-| Comilla de cierre (estado 21, columna `"`) | Pertenece al lexema de la cadena |
-| Fin de línea del comentario (estado 10) | Se consume como cierre del comentario |
+| `yylex` en bucle sobre P1–P6 | Listado **idéntico** al de la etapa 1 |
+| Último token sin blanco final | No se pierde: EOF fuerza el cierre |
+| `n = 0;` | E2 y `PUNTO_Y_COMA` presente en el listado (§8) |
+| `@` en medio de una expresión | E1 y `yylex` sigue entregando tokens |
+| `2/4` | En TS figura `1/2` |
+| `0/5` | En TS figura `0/1` |
+| Un `ID` usado dos veces | Mismo índice en `yylval` |
+| Integración con `yyparse` | El fuente se consume entero: `yylex` llega a retornar `0` |
 
-Al devolver un fin de línea debe decrementarse el contador de líneas, porque se vuelve a leer en la llamada siguiente y se contaría dos veces.
-
-**Decisión registrada:** el retroceso se resuelve dentro del bucle y no con una cuarta matriz, dado que las excepciones son solo dos.
-
----
-
-## 10. Salidas
-
-El listado de tokens deja de ser la salida principal, pero se conserva para verificar que el léxico sigue comportándose igual que en la etapa 1.
-
-| Archivo | Contenido | Cuándo se escribe |
-| --- | --- | --- |
-| `out/listado.txt` | Un token por línea | En cada retorno de `yylex` |
-| `out/tabla_simbolos.txt` | Nombre, tipo, valor y longitud | Al finalizar `yyparse` |
-
-Emplear rutas relativas. El código de la etapa 1 tiene rutas absolutas que impiden compilarlo en otro equipo.
+La primera es la más importante: verifica que la adaptación no alteró el reconocimiento.
 
 ---
 
-## 11. Pruebas de la etapa
+## 12. Criterios de aceptación
 
-### 11.1. Prueba de equivalencia
-
-Compilar `lexico.c` con un `main` de prueba que invoque `yylex()` en un bucle hasta recibir `0`, imprimiendo cada token. La salida debe ser idéntica a la del listado de la etapa 1 para los cuatro programas P1, P4, P5 y P6.
-
-Es la prueba más importante: verifica que la adaptación no alteró el reconocimiento.
-
-### 11.2. Prueba de integración
-
-Con el parser ya generado, verificar para cada programa de prueba que:
-
-- Se consume el archivo completo, o sea que `yylex` llega a retornar `0`.
+- `yylex` retorna un token por llamada y `0` en EOF; nunca un código de error.
+- El listado de tokens de los seis programas correctos coincide con el de la etapa 1.
 - `yylval` llega cargado en las reglas que usan `ID`, `CTE` y `CADENA`.
-- Un error léxico no interrumpe el análisis sintáctico.
-
-### 11.3. Prueba de normalización
-
-Verificar en la tabla de símbolos que `2/4` se registra como `1/2`, que `0/5` se registra como `0/1` y que dos constantes equivalentes escritas de distinta forma comparten una única entrada.
-
-### 11.4. Prueba de valor semántico
-
-Sobre P6, verificar que los índices recibidos para `cuadrado`, `mostrar`, `x`, `v` y `r` corresponden a las entradas correctas de la tabla de símbolos, y que una misma variable usada dos veces devuelve el mismo índice.
+- Las constantes figuran normalizadas en la TS.
+- Un error léxico no interrumpe `yyparse` ni hace perder caracteres; el error sintáctico derivado que igual se produzca se informa (§13).
+- Las dos numeraciones conviven solo dentro de `traducir_token`.
 
 ---
 
-## 12. Decisiones
+## 13. Errores derivados — decisión a consultar con la cátedra
 
-### 12.1. Decisiones tomadas
+> **A consultar con el profesor antes de la entrega.** La decisión está tomada y es la que implementa esta spec, pero conviene validar el criterio.
 
-| Punto | Decisión | Sección |
+**Decisión:** informar **ambos** errores. No se suprime el error sintáctico derivado de un error léxico.
+
+Un único error en el fuente puede producir dos mensajes. Con `n = 0;`, el léxico informa E2 y entrega al parser la secuencia `ID OP_ASIG PUNTO_Y_COMA`, que es una sentencia sin operando derecho, de modo que el parser informa además E5:
+
+```
+Linea 3: Error lexico E2: constante mal formada
+Linea 3: Error sintactico E5: sentencia mal formada
+```
+
+El E5 no está en el programa fuente: aparece porque el léxico no pudo entregar el `CTE`. El unread de §8 acota el daño a esa sentencia, pero no lo elimina, porque el operando sigue faltando.
+
+| | Se informan ambos (elegido) | Se suprime el derivado |
 | --- | --- | --- |
-| Codificación de tokens | Delegar la numeración en el generador. Los códigos 10 a 300 se conservan solo para documentación y salidas | 3 |
-| Contenido de las cadenas | Se mantiene el criterio actual: una cadena admite únicamente letras | 12.2 |
-| Normalización de racionales | Simplificar en `fin_cte`, antes de insertar en la tabla de símbolos | 5.4 |
-| Retroceso de caracteres | Resuelto dentro del bucle, sin cuarta matriz | 9 |
-| Retroceso ante error léxico | Agregar el `ungetc` en la rama de error | 8.1 |
+| Qué ve el usuario | Dos mensajes por un error | Un mensaje |
+| Fidelidad | Refleja lo que ocurrió en cada fase | Oculta la reacción del parser |
+| Riesgo | El usuario debe inferir que el segundo es consecuencia | Se pierde un error sintáctico real e independiente en esa línea |
+| Implementación | Ninguna | Registrar la última línea con error léxico y compararla en `yyerror` |
 
-### 12.2. Consecuencia de mantener el alfabeto de las cadenas
+**Motivo de la elección:** suprimir por línea descartaría también errores sintácticos genuinos que compartan línea con un error léxico, y la consigna general 14 pide registrar los errores y continuar, no filtrarlos.
 
-Una cadena admite letras y nada más: ni espacios, ni dígitos, ni signos de puntuación. Los programas de prueba deben respetarlo. En particular, el caso P1 debe escribirse como `write("Resultado")` y no `write("Resultado:")`, que produce dos errores léxicos.
+**Qué consultar:** si la cátedra espera que el informe muestre un error por causa o un error por fase. Si la respuesta es la primera, aplicar el filtro de la columna derecha, que es un cambio acotado a `yyerror`.
 
-Registrar esta restricción en la definición del lenguaje, porque no es evidente para quien lea únicamente la gramática.
-
-### 12.3. Decisiones abiertas
-
-1. Unificación de los códigos de error entre el documento y el código. Sección 8.3.
-2. Comportamiento del informe ante un error léxico seguido de su error sintáctico derivado. Sección 8.1.
+Registrar la respuesta en `bitacora.md` de esta carpeta.
