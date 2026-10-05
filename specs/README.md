@@ -12,11 +12,8 @@ El desarrollo sigue **Spec-Driven Development**: la lógica del compilador se es
 | 01-diseno                              | Grupo     | 31/08/2026 |
 | 02-tabla-simbolos                      | Grupo     | 14/09/2026 |
 | 03-analizador-lexico (etapa 1 listado) | Grupo     | 20/09/2026 |
-| 04-analizador-sintactico               |           |            |
-| 05-errores                             |           |            |
-| 06-codigo-intermedio                   |           |            |
-| 07-codigo-assembler                    |           |            |
-
+| 03-analizador-lexico (etapa 2 lexer)   | Grupo     | 28/09/2026 |
+| 
 
 ## Modelos usados
 

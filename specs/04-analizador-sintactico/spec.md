@@ -21,8 +21,8 @@ Reconocer la estructura del programa fuente aplicando las reglas gramaticales de
 ### 1.3 Salida
 
 1. **Veredicto**: el programa pertenece o no al lenguaje.
-2. **Errores sintácticos** reportados por `yyerror`, con la línea del fuente.
-3. **Punto de enganche** para las acciones semánticas de etapas posteriores.
+2. **Errores sintácticos** reportados por `yyerror`, con la línea del error.
+3. **Punto de partida** para las acciones semánticas de etapas posteriores.
 
 ### 1.4 Fuera de alcance
 
