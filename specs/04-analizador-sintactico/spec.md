@@ -21,19 +21,20 @@ Reconocer la estructura del programa fuente aplicando las reglas gramaticales de
 ### 1.3 Salida
 
 1. **Veredicto**: el programa pertenece o no al lenguaje.
-2. **Errores sintácticos** reportados por `yyerror`, con la línea del error.
-3. **Punto de partida** para las acciones semánticas de etapas posteriores.
+2. **Errores sintácticos** reportados por `yyerror`, con la línea del fuente.
+3. **Punto de enganche** para las acciones semánticas de etapas posteriores.
 
 ### 1.4 Fuera de alcance
 
-| Qué | Dónde se especifica |
-| --- | --- |
-| Catálogo y recuperación de errores | `specs/05-errores/` |
-| Generación de tercetos en cada regla | `specs/06-codigo-intermedio/` |
-| Controles semánticos R1, R2, R7 | `specs/05-errores/` |
-| Reconocimiento de tokens | `specs/03-analizador-lexico/` |
+Queda fuera de esta spec, y se especifica en etapas posteriores:
 
-Las acciones semánticas se escriben físicamente dentro de las reglas de esta spec, pero **su contenido** lo define la spec 06. Esta spec define el esqueleto; la 06 lo llena.
+- El contenido de las acciones semánticas: qué emite cada regla, el formato del terceto y sus operadores.
+- Los controles semánticos R1, R2 y R7, y la estrategia de recuperación de errores.
+- La traducción a assembler.
+
+El reconocimiento de tokens ya está especificado en `specs/03-analizador-lexico/`.
+
+Las acciones semánticas se escriben físicamente dentro de las reglas de §5, pero **su contenido** se define aparte. Esta spec deja el esqueleto; la etapa de código intermedio lo llena.
 
 ### 1.5 Responsabilidades
 
@@ -69,7 +70,7 @@ Las acciones semánticas se escriben físicamente dentro de las reglas de esta s
 | Declaraciones | `#include` de la tabla de símbolos y del léxico, prototipos de `yylex` y `yyerror`, variables globales |
 | Tokens | `%union`, `%token`, `%start` |
 | Reglas | Las 25 producciones de `01-diseno` §9 |
-| Código auxiliar | `yyerror`, `main`, y las funciones que invoquen las acciones de la spec 06 |
+| Código auxiliar | `yyerror`, `main`, y las funciones auxiliares que invoquen las acciones semánticas |
 
 ---
 
@@ -326,10 +327,11 @@ Toda producción de §5 debe quedar ejercitada por al menos un caso. Si alguna n
 
 ## 11. Remisiones
 
-| Tema | Spec |
+| Tema | Dónde |
 | --- | --- |
-| Qué emite cada regla | `06-codigo-intermedio` |
-| Catálogo de errores y recuperación | `05-errores` |
-| Formato del terceto y operadores | `06-codigo-intermedio` |
-| Contrato de `yylex` y `yylval` | `03-analizador-lexico/spec-etapa-2.md` |
-| Gramática original y catálogo de errores | `01-diseno/spec.md` §9 y §12 |
+| Contrato de `yylex` y `yylval` | `specs/03-analizador-lexico/spec-etapa-2.md` §3 y §4 |
+| Gramática original | `specs/01-diseno/spec.md` §9 |
+| Catálogo de errores | `specs/01-diseno/spec.md` §12 |
+| Contrato de la tabla de símbolos | `specs/02-tabla-simbolos/spec.md` |
+
+**Decisión registrada:** el grupo trabaja con **tercetos** como representación intermedia. El motivo consta en la bitácora de esta etapa. Acá solo se deja constancia de que las acciones de §5 van a emitirlos; el formato y los operadores se especifican más adelante.
