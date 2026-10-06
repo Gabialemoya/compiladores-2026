@@ -13,7 +13,7 @@ typedef union {
 } YYSTYPE;
 YYSTYPE yylval;
 #else
-#include "parser.tab.h"
+#include "../parser.tab.h"
 #endif
 
 // Columnas

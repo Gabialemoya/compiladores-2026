@@ -13,7 +13,7 @@ El desarrollo sigue **Spec-Driven Development**: la lógica del compilador se es
 | 02-tabla-simbolos                      | Grupo     | 14/09/2026 |
 | 03-analizador-lexico (etapa 1 listado) | Grupo     | 20/09/2026 |
 | 03-analizador-lexico (etapa 2 lexer)   | Grupo     | 28/09/2026 |
-| 
+| 04-analizador-sintactico               | Grupo     | 05/10/2026 |
 
 ## Modelos usados
 
@@ -23,7 +23,7 @@ El desarrollo sigue **Spec-Driven Development**: la lógica del compilador se es
 | 01-diseno            | Cursor Grok 4.6 | Redacción a partir de consignas, definición del lenguaje, matrices y teoría. |
 | 02-tabla-simbolos    | Cursor Grok 4.6 | Definición del contrato de la tabla de simbolos                                                                                                          
 | 03-analizador-lexico | Cursor Grok 4.6 | Etapa 1 listado de tokens                                                    |
-
+| 04-analizador-sintactico | Antigravity | Generar parser.y y compilador                                                |
 
 
 

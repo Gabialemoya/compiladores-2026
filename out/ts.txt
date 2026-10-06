@@ -1,6 +1,4 @@
 NOMBRE | TIPO | VALOR | LONGITUD
-s | racional |  | 1
-n | racional |  | 1
-0/1 | racional | 0/1 | 3
+f | racional |  | 1
+x | racional |  | 1
 1/1 | racional | 1/1 | 3
-40/1 | racional | 40/1 | 4

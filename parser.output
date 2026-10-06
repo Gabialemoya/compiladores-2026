@@ -1,0 +1,1402 @@
+Gramática
+
+    0 $accept: programa $end
+
+    1 programa: lista_funciones funcion_main
+    2         | funcion_main
+
+    3 lista_funciones: lista_funciones definicion_funcion
+    4                | definicion_funcion
+
+    5 definicion_funcion: ID PAR_ABRE ID PAR_CIERRA cuerpo
+
+    6 funcion_main: MAIN PAR_ABRE PAR_CIERRA cuerpo
+
+    7 cuerpo: LLAVE_ABRE declaraciones lista_sentencias LLAVE_CIERRA
+
+    8 declaraciones: declaraciones declaracion
+    9              | /* vacío */
+
+   10 declaracion: VAR ID PUNTO_Y_COMA
+
+   11 lista_sentencias: lista_sentencias sentencia
+   12                 | sentencia
+
+   13 sentencia: asignacion
+   14          | seleccion
+   15          | iteracion
+   16          | salida
+   17          | retorno
+   18          | invocacion PUNTO_Y_COMA
+
+   19 asignacion: ID OP_ASIG expresion PUNTO_Y_COMA
+
+   20 retorno: RETURN expresion PUNTO_Y_COMA
+
+   21 salida: WRITE PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA
+   22       | WRITE PAR_ABRE CADENA PAR_CIERRA PUNTO_Y_COMA
+
+   23 seleccion: IF PAR_ABRE condiciones PAR_CIERRA bloque
+   24          | IF PAR_ABRE condiciones PAR_CIERRA bloque ELSE bloque
+
+   25 iteracion: LOOP bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA
+
+   26 bloque: LLAVE_ABRE lista_sentencias LLAVE_CIERRA
+
+   27 condiciones: condiciones op_logico condicion
+   28            | condicion
+
+   29 condicion: expresion op_comparacion expresion
+   30          | PAR_ABRE condiciones PAR_CIERRA
+
+   31 expresion: expresion OP_SUMA termino
+   32          | expresion OP_RESTA termino
+   33          | termino
+
+   34 termino: termino OP_MUL factor
+   35        | termino OP_DIV factor
+   36        | factor
+
+   37 factor: ID
+   38       | CTE
+   39       | invocacion
+   40       | PAR_ABRE expresion PAR_CIERRA
+
+   41 invocacion: ID PAR_ABRE expresion PAR_CIERRA
+
+   42 op_comparacion: OP_MENOR
+   43               | OP_MENOR_IGUAL
+   44               | OP_MAYOR
+   45               | OP_MAYOR_IGUAL
+   46               | OP_IGUAL
+   47               | OP_DISTINTO
+
+   48 op_logico: AND
+   49          | OR
+
+
+Terminales con las reglas donde aparecen
+
+$end (0) 0
+error (256)
+ID (258) 5 10 19 37 41
+CTE (259) 38
+CADENA (260) 22
+OP_ASIG (261) 19
+OP_IGUAL (262) 46
+OP_SUMA (263) 31
+OP_RESTA (264) 32
+OP_MUL (265) 34
+OP_DIV (266) 35
+OP_MENOR (267) 42
+OP_MENOR_IGUAL (268) 43
+OP_MAYOR (269) 44
+OP_MAYOR_IGUAL (270) 45
+OP_DISTINTO (271) 47
+PUNTO_Y_COMA (272) 10 18 19 20 21 22 25
+PAR_ABRE (273) 5 6 21 22 23 24 25 30 40 41
+PAR_CIERRA (274) 5 6 21 22 23 24 25 30 40 41
+LLAVE_ABRE (275) 7 26
+LLAVE_CIERRA (276) 7 26
+IF (277) 23 24
+ELSE (278) 24
+VAR (279) 10
+LOOP (280) 25
+UNTIL (281) 25
+OR (282) 49
+AND (283) 48
+WRITE (284) 21 22
+MAIN (285) 6
+RETURN (286) 20
+
+
+No terminales con las reglas donde aparecen
+
+$accept (32)
+    en la izquierda: 0
+programa (33)
+    en la izquierda: 1 2, en la derecha: 0
+lista_funciones (34)
+    en la izquierda: 3 4, en la derecha: 1 3
+definicion_funcion (35)
+    en la izquierda: 5, en la derecha: 3 4
+funcion_main (36)
+    en la izquierda: 6, en la derecha: 1 2
+cuerpo (37)
+    en la izquierda: 7, en la derecha: 5 6
+declaraciones (38)
+    en la izquierda: 8 9, en la derecha: 7 8
+declaracion (39)
+    en la izquierda: 10, en la derecha: 8
+lista_sentencias (40)
+    en la izquierda: 11 12, en la derecha: 7 11 26
+sentencia (41)
+    en la izquierda: 13 14 15 16 17 18, en la derecha: 11 12
+asignacion (42)
+    en la izquierda: 19, en la derecha: 13
+retorno (43)
+    en la izquierda: 20, en la derecha: 17
+salida (44)
+    en la izquierda: 21 22, en la derecha: 16
+seleccion (45)
+    en la izquierda: 23 24, en la derecha: 14
+iteracion (46)
+    en la izquierda: 25, en la derecha: 15
+bloque (47)
+    en la izquierda: 26, en la derecha: 23 24 25
+condiciones (48)
+    en la izquierda: 27 28, en la derecha: 23 24 25 27 30
+condicion (49)
+    en la izquierda: 29 30, en la derecha: 27 28
+expresion (50)
+    en la izquierda: 31 32 33, en la derecha: 19 20 21 29 31 32 40
+    41
+termino (51)
+    en la izquierda: 34 35 36, en la derecha: 31 32 33 34 35
+factor (52)
+    en la izquierda: 37 38 39 40, en la derecha: 34 35 36
+invocacion (53)
+    en la izquierda: 41, en la derecha: 18 39
+op_comparacion (54)
+    en la izquierda: 42 43 44 45 46 47, en la derecha: 29
+op_logico (55)
+    en la izquierda: 48 49, en la derecha: 27
+
+
+estado 0
+
+    0 $accept: . programa $end
+    1 programa: . lista_funciones funcion_main
+    2         | . funcion_main
+    3 lista_funciones: . lista_funciones definicion_funcion
+    4                | . definicion_funcion
+    5 definicion_funcion: . ID PAR_ABRE ID PAR_CIERRA cuerpo
+    6 funcion_main: . MAIN PAR_ABRE PAR_CIERRA cuerpo
+
+    ID    desplazar e ir al estado 1
+    MAIN  desplazar e ir al estado 2
+
+    programa            ir al estado 3
+    lista_funciones     ir al estado 4
+    definicion_funcion  ir al estado 5
+    funcion_main        ir al estado 6
+
+
+estado 1
+
+    5 definicion_funcion: ID . PAR_ABRE ID PAR_CIERRA cuerpo
+
+    PAR_ABRE  desplazar e ir al estado 7
+
+
+estado 2
+
+    6 funcion_main: MAIN . PAR_ABRE PAR_CIERRA cuerpo
+
+    PAR_ABRE  desplazar e ir al estado 8
+
+
+estado 3
+
+    0 $accept: programa . $end
+
+    $end  desplazar e ir al estado 9
+
+
+estado 4
+
+    1 programa: lista_funciones . funcion_main
+    3 lista_funciones: lista_funciones . definicion_funcion
+    5 definicion_funcion: . ID PAR_ABRE ID PAR_CIERRA cuerpo
+    6 funcion_main: . MAIN PAR_ABRE PAR_CIERRA cuerpo
+
+    ID    desplazar e ir al estado 1
+    MAIN  desplazar e ir al estado 2
+
+    definicion_funcion  ir al estado 10
+    funcion_main        ir al estado 11
+
+
+estado 5
+
+    4 lista_funciones: definicion_funcion .
+
+    $default  reduce usando la regla 4 (lista_funciones)
+
+
+estado 6
+
+    2 programa: funcion_main .
+
+    $default  reduce usando la regla 2 (programa)
+
+
+estado 7
+
+    5 definicion_funcion: ID PAR_ABRE . ID PAR_CIERRA cuerpo
+
+    ID  desplazar e ir al estado 12
+
+
+estado 8
+
+    6 funcion_main: MAIN PAR_ABRE . PAR_CIERRA cuerpo
+
+    PAR_CIERRA  desplazar e ir al estado 13
+
+
+estado 9
+
+    0 $accept: programa $end .
+
+    $default  aceptar
+
+
+estado 10
+
+    3 lista_funciones: lista_funciones definicion_funcion .
+
+    $default  reduce usando la regla 3 (lista_funciones)
+
+
+estado 11
+
+    1 programa: lista_funciones funcion_main .
+
+    $default  reduce usando la regla 1 (programa)
+
+
+estado 12
+
+    5 definicion_funcion: ID PAR_ABRE ID . PAR_CIERRA cuerpo
+
+    PAR_CIERRA  desplazar e ir al estado 14
+
+
+estado 13
+
+    6 funcion_main: MAIN PAR_ABRE PAR_CIERRA . cuerpo
+    7 cuerpo: . LLAVE_ABRE declaraciones lista_sentencias LLAVE_CIERRA
+
+    LLAVE_ABRE  desplazar e ir al estado 15
+
+    cuerpo  ir al estado 16
+
+
+estado 14
+
+    5 definicion_funcion: ID PAR_ABRE ID PAR_CIERRA . cuerpo
+    7 cuerpo: . LLAVE_ABRE declaraciones lista_sentencias LLAVE_CIERRA
+
+    LLAVE_ABRE  desplazar e ir al estado 15
+
+    cuerpo  ir al estado 17
+
+
+estado 15
+
+    7 cuerpo: LLAVE_ABRE . declaraciones lista_sentencias LLAVE_CIERRA
+    8 declaraciones: . declaraciones declaracion
+    9              | .
+
+    $default  reduce usando la regla 9 (declaraciones)
+
+    declaraciones  ir al estado 18
+
+
+estado 16
+
+    6 funcion_main: MAIN PAR_ABRE PAR_CIERRA cuerpo .
+
+    $default  reduce usando la regla 6 (funcion_main)
+
+
+estado 17
+
+    5 definicion_funcion: ID PAR_ABRE ID PAR_CIERRA cuerpo .
+
+    $default  reduce usando la regla 5 (definicion_funcion)
+
+
+estado 18
+
+    7 cuerpo: LLAVE_ABRE declaraciones . lista_sentencias LLAVE_CIERRA
+    8 declaraciones: declaraciones . declaracion
+   10 declaracion: . VAR ID PUNTO_Y_COMA
+   11 lista_sentencias: . lista_sentencias sentencia
+   12                 | . sentencia
+   13 sentencia: . asignacion
+   14          | . seleccion
+   15          | . iteracion
+   16          | . salida
+   17          | . retorno
+   18          | . invocacion PUNTO_Y_COMA
+   19 asignacion: . ID OP_ASIG expresion PUNTO_Y_COMA
+   20 retorno: . RETURN expresion PUNTO_Y_COMA
+   21 salida: . WRITE PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA
+   22       | . WRITE PAR_ABRE CADENA PAR_CIERRA PUNTO_Y_COMA
+   23 seleccion: . IF PAR_ABRE condiciones PAR_CIERRA bloque
+   24          | . IF PAR_ABRE condiciones PAR_CIERRA bloque ELSE bloque
+   25 iteracion: . LOOP bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID      desplazar e ir al estado 19
+    IF      desplazar e ir al estado 20
+    VAR     desplazar e ir al estado 21
+    LOOP    desplazar e ir al estado 22
+    WRITE   desplazar e ir al estado 23
+    RETURN  desplazar e ir al estado 24
+
+    declaracion       ir al estado 25
+    lista_sentencias  ir al estado 26
+    sentencia         ir al estado 27
+    asignacion        ir al estado 28
+    retorno           ir al estado 29
+    salida            ir al estado 30
+    seleccion         ir al estado 31
+    iteracion         ir al estado 32
+    invocacion        ir al estado 33
+
+
+estado 19
+
+   19 asignacion: ID . OP_ASIG expresion PUNTO_Y_COMA
+   41 invocacion: ID . PAR_ABRE expresion PAR_CIERRA
+
+    OP_ASIG   desplazar e ir al estado 34
+    PAR_ABRE  desplazar e ir al estado 35
+
+
+estado 20
+
+   23 seleccion: IF . PAR_ABRE condiciones PAR_CIERRA bloque
+   24          | IF . PAR_ABRE condiciones PAR_CIERRA bloque ELSE bloque
+
+    PAR_ABRE  desplazar e ir al estado 36
+
+
+estado 21
+
+   10 declaracion: VAR . ID PUNTO_Y_COMA
+
+    ID  desplazar e ir al estado 37
+
+
+estado 22
+
+   25 iteracion: LOOP . bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA
+   26 bloque: . LLAVE_ABRE lista_sentencias LLAVE_CIERRA
+
+    LLAVE_ABRE  desplazar e ir al estado 38
+
+    bloque  ir al estado 39
+
+
+estado 23
+
+   21 salida: WRITE . PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA
+   22       | WRITE . PAR_ABRE CADENA PAR_CIERRA PUNTO_Y_COMA
+
+    PAR_ABRE  desplazar e ir al estado 40
+
+
+estado 24
+
+   20 retorno: RETURN . expresion PUNTO_Y_COMA
+   31 expresion: . expresion OP_SUMA termino
+   32          | . expresion OP_RESTA termino
+   33          | . termino
+   34 termino: . termino OP_MUL factor
+   35        | . termino OP_DIV factor
+   36        | . factor
+   37 factor: . ID
+   38       | . CTE
+   39       | . invocacion
+   40       | . PAR_ABRE expresion PAR_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID        desplazar e ir al estado 41
+    CTE       desplazar e ir al estado 42
+    PAR_ABRE  desplazar e ir al estado 43
+
+    expresion   ir al estado 44
+    termino     ir al estado 45
+    factor      ir al estado 46
+    invocacion  ir al estado 47
+
+
+estado 25
+
+    8 declaraciones: declaraciones declaracion .
+
+    $default  reduce usando la regla 8 (declaraciones)
+
+
+estado 26
+
+    7 cuerpo: LLAVE_ABRE declaraciones lista_sentencias . LLAVE_CIERRA
+   11 lista_sentencias: lista_sentencias . sentencia
+   13 sentencia: . asignacion
+   14          | . seleccion
+   15          | . iteracion
+   16          | . salida
+   17          | . retorno
+   18          | . invocacion PUNTO_Y_COMA
+   19 asignacion: . ID OP_ASIG expresion PUNTO_Y_COMA
+   20 retorno: . RETURN expresion PUNTO_Y_COMA
+   21 salida: . WRITE PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA
+   22       | . WRITE PAR_ABRE CADENA PAR_CIERRA PUNTO_Y_COMA
+   23 seleccion: . IF PAR_ABRE condiciones PAR_CIERRA bloque
+   24          | . IF PAR_ABRE condiciones PAR_CIERRA bloque ELSE bloque
+   25 iteracion: . LOOP bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID            desplazar e ir al estado 19
+    LLAVE_CIERRA  desplazar e ir al estado 48
+    IF            desplazar e ir al estado 20
+    LOOP          desplazar e ir al estado 22
+    WRITE         desplazar e ir al estado 23
+    RETURN        desplazar e ir al estado 24
+
+    sentencia   ir al estado 49
+    asignacion  ir al estado 28
+    retorno     ir al estado 29
+    salida      ir al estado 30
+    seleccion   ir al estado 31
+    iteracion   ir al estado 32
+    invocacion  ir al estado 33
+
+
+estado 27
+
+   12 lista_sentencias: sentencia .
+
+    $default  reduce usando la regla 12 (lista_sentencias)
+
+
+estado 28
+
+   13 sentencia: asignacion .
+
+    $default  reduce usando la regla 13 (sentencia)
+
+
+estado 29
+
+   17 sentencia: retorno .
+
+    $default  reduce usando la regla 17 (sentencia)
+
+
+estado 30
+
+   16 sentencia: salida .
+
+    $default  reduce usando la regla 16 (sentencia)
+
+
+estado 31
+
+   14 sentencia: seleccion .
+
+    $default  reduce usando la regla 14 (sentencia)
+
+
+estado 32
+
+   15 sentencia: iteracion .
+
+    $default  reduce usando la regla 15 (sentencia)
+
+
+estado 33
+
+   18 sentencia: invocacion . PUNTO_Y_COMA
+
+    PUNTO_Y_COMA  desplazar e ir al estado 50
+
+
+estado 34
+
+   19 asignacion: ID OP_ASIG . expresion PUNTO_Y_COMA
+   31 expresion: . expresion OP_SUMA termino
+   32          | . expresion OP_RESTA termino
+   33          | . termino
+   34 termino: . termino OP_MUL factor
+   35        | . termino OP_DIV factor
+   36        | . factor
+   37 factor: . ID
+   38       | . CTE
+   39       | . invocacion
+   40       | . PAR_ABRE expresion PAR_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID        desplazar e ir al estado 41
+    CTE       desplazar e ir al estado 42
+    PAR_ABRE  desplazar e ir al estado 43
+
+    expresion   ir al estado 51
+    termino     ir al estado 45
+    factor      ir al estado 46
+    invocacion  ir al estado 47
+
+
+estado 35
+
+   31 expresion: . expresion OP_SUMA termino
+   32          | . expresion OP_RESTA termino
+   33          | . termino
+   34 termino: . termino OP_MUL factor
+   35        | . termino OP_DIV factor
+   36        | . factor
+   37 factor: . ID
+   38       | . CTE
+   39       | . invocacion
+   40       | . PAR_ABRE expresion PAR_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+   41           | ID PAR_ABRE . expresion PAR_CIERRA
+
+    ID        desplazar e ir al estado 41
+    CTE       desplazar e ir al estado 42
+    PAR_ABRE  desplazar e ir al estado 43
+
+    expresion   ir al estado 52
+    termino     ir al estado 45
+    factor      ir al estado 46
+    invocacion  ir al estado 47
+
+
+estado 36
+
+   23 seleccion: IF PAR_ABRE . condiciones PAR_CIERRA bloque
+   24          | IF PAR_ABRE . condiciones PAR_CIERRA bloque ELSE bloque
+   27 condiciones: . condiciones op_logico condicion
+   28            | . condicion
+   29 condicion: . expresion op_comparacion expresion
+   30          | . PAR_ABRE condiciones PAR_CIERRA
+   31 expresion: . expresion OP_SUMA termino
+   32          | . expresion OP_RESTA termino
+   33          | . termino
+   34 termino: . termino OP_MUL factor
+   35        | . termino OP_DIV factor
+   36        | . factor
+   37 factor: . ID
+   38       | . CTE
+   39       | . invocacion
+   40       | . PAR_ABRE expresion PAR_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID        desplazar e ir al estado 41
+    CTE       desplazar e ir al estado 42
+    PAR_ABRE  desplazar e ir al estado 53
+
+    condiciones  ir al estado 54
+    condicion    ir al estado 55
+    expresion    ir al estado 56
+    termino      ir al estado 45
+    factor       ir al estado 46
+    invocacion   ir al estado 47
+
+
+estado 37
+
+   10 declaracion: VAR ID . PUNTO_Y_COMA
+
+    PUNTO_Y_COMA  desplazar e ir al estado 57
+
+
+estado 38
+
+   11 lista_sentencias: . lista_sentencias sentencia
+   12                 | . sentencia
+   13 sentencia: . asignacion
+   14          | . seleccion
+   15          | . iteracion
+   16          | . salida
+   17          | . retorno
+   18          | . invocacion PUNTO_Y_COMA
+   19 asignacion: . ID OP_ASIG expresion PUNTO_Y_COMA
+   20 retorno: . RETURN expresion PUNTO_Y_COMA
+   21 salida: . WRITE PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA
+   22       | . WRITE PAR_ABRE CADENA PAR_CIERRA PUNTO_Y_COMA
+   23 seleccion: . IF PAR_ABRE condiciones PAR_CIERRA bloque
+   24          | . IF PAR_ABRE condiciones PAR_CIERRA bloque ELSE bloque
+   25 iteracion: . LOOP bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA
+   26 bloque: LLAVE_ABRE . lista_sentencias LLAVE_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID      desplazar e ir al estado 19
+    IF      desplazar e ir al estado 20
+    LOOP    desplazar e ir al estado 22
+    WRITE   desplazar e ir al estado 23
+    RETURN  desplazar e ir al estado 24
+
+    lista_sentencias  ir al estado 58
+    sentencia         ir al estado 27
+    asignacion        ir al estado 28
+    retorno           ir al estado 29
+    salida            ir al estado 30
+    seleccion         ir al estado 31
+    iteracion         ir al estado 32
+    invocacion        ir al estado 33
+
+
+estado 39
+
+   25 iteracion: LOOP bloque . UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA
+
+    UNTIL  desplazar e ir al estado 59
+
+
+estado 40
+
+   21 salida: WRITE PAR_ABRE . expresion PAR_CIERRA PUNTO_Y_COMA
+   22       | WRITE PAR_ABRE . CADENA PAR_CIERRA PUNTO_Y_COMA
+   31 expresion: . expresion OP_SUMA termino
+   32          | . expresion OP_RESTA termino
+   33          | . termino
+   34 termino: . termino OP_MUL factor
+   35        | . termino OP_DIV factor
+   36        | . factor
+   37 factor: . ID
+   38       | . CTE
+   39       | . invocacion
+   40       | . PAR_ABRE expresion PAR_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID        desplazar e ir al estado 41
+    CTE       desplazar e ir al estado 42
+    CADENA    desplazar e ir al estado 60
+    PAR_ABRE  desplazar e ir al estado 43
+
+    expresion   ir al estado 61
+    termino     ir al estado 45
+    factor      ir al estado 46
+    invocacion  ir al estado 47
+
+
+estado 41
+
+   37 factor: ID .  [OP_IGUAL, OP_SUMA, OP_RESTA, OP_MUL, OP_DIV, OP_MENOR, OP_MENOR_IGUAL, OP_MAYOR, OP_MAYOR_IGUAL, OP_DISTINTO, PUNTO_Y_COMA, PAR_CIERRA, OR, AND]
+   41 invocacion: ID . PAR_ABRE expresion PAR_CIERRA
+
+    PAR_ABRE  desplazar e ir al estado 35
+
+    $default  reduce usando la regla 37 (factor)
+
+
+estado 42
+
+   38 factor: CTE .
+
+    $default  reduce usando la regla 38 (factor)
+
+
+estado 43
+
+   31 expresion: . expresion OP_SUMA termino
+   32          | . expresion OP_RESTA termino
+   33          | . termino
+   34 termino: . termino OP_MUL factor
+   35        | . termino OP_DIV factor
+   36        | . factor
+   37 factor: . ID
+   38       | . CTE
+   39       | . invocacion
+   40       | . PAR_ABRE expresion PAR_CIERRA
+   40       | PAR_ABRE . expresion PAR_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID        desplazar e ir al estado 41
+    CTE       desplazar e ir al estado 42
+    PAR_ABRE  desplazar e ir al estado 43
+
+    expresion   ir al estado 62
+    termino     ir al estado 45
+    factor      ir al estado 46
+    invocacion  ir al estado 47
+
+
+estado 44
+
+   20 retorno: RETURN expresion . PUNTO_Y_COMA
+   31 expresion: expresion . OP_SUMA termino
+   32          | expresion . OP_RESTA termino
+
+    OP_SUMA       desplazar e ir al estado 63
+    OP_RESTA      desplazar e ir al estado 64
+    PUNTO_Y_COMA  desplazar e ir al estado 65
+
+
+estado 45
+
+   33 expresion: termino .  [OP_IGUAL, OP_SUMA, OP_RESTA, OP_MENOR, OP_MENOR_IGUAL, OP_MAYOR, OP_MAYOR_IGUAL, OP_DISTINTO, PUNTO_Y_COMA, PAR_CIERRA, OR, AND]
+   34 termino: termino . OP_MUL factor
+   35        | termino . OP_DIV factor
+
+    OP_MUL  desplazar e ir al estado 66
+    OP_DIV  desplazar e ir al estado 67
+
+    $default  reduce usando la regla 33 (expresion)
+
+
+estado 46
+
+   36 termino: factor .
+
+    $default  reduce usando la regla 36 (termino)
+
+
+estado 47
+
+   39 factor: invocacion .
+
+    $default  reduce usando la regla 39 (factor)
+
+
+estado 48
+
+    7 cuerpo: LLAVE_ABRE declaraciones lista_sentencias LLAVE_CIERRA .
+
+    $default  reduce usando la regla 7 (cuerpo)
+
+
+estado 49
+
+   11 lista_sentencias: lista_sentencias sentencia .
+
+    $default  reduce usando la regla 11 (lista_sentencias)
+
+
+estado 50
+
+   18 sentencia: invocacion PUNTO_Y_COMA .
+
+    $default  reduce usando la regla 18 (sentencia)
+
+
+estado 51
+
+   19 asignacion: ID OP_ASIG expresion . PUNTO_Y_COMA
+   31 expresion: expresion . OP_SUMA termino
+   32          | expresion . OP_RESTA termino
+
+    OP_SUMA       desplazar e ir al estado 63
+    OP_RESTA      desplazar e ir al estado 64
+    PUNTO_Y_COMA  desplazar e ir al estado 68
+
+
+estado 52
+
+   31 expresion: expresion . OP_SUMA termino
+   32          | expresion . OP_RESTA termino
+   41 invocacion: ID PAR_ABRE expresion . PAR_CIERRA
+
+    OP_SUMA     desplazar e ir al estado 63
+    OP_RESTA    desplazar e ir al estado 64
+    PAR_CIERRA  desplazar e ir al estado 69
+
+
+estado 53
+
+   27 condiciones: . condiciones op_logico condicion
+   28            | . condicion
+   29 condicion: . expresion op_comparacion expresion
+   30          | . PAR_ABRE condiciones PAR_CIERRA
+   30          | PAR_ABRE . condiciones PAR_CIERRA
+   31 expresion: . expresion OP_SUMA termino
+   32          | . expresion OP_RESTA termino
+   33          | . termino
+   34 termino: . termino OP_MUL factor
+   35        | . termino OP_DIV factor
+   36        | . factor
+   37 factor: . ID
+   38       | . CTE
+   39       | . invocacion
+   40       | . PAR_ABRE expresion PAR_CIERRA
+   40       | PAR_ABRE . expresion PAR_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID        desplazar e ir al estado 41
+    CTE       desplazar e ir al estado 42
+    PAR_ABRE  desplazar e ir al estado 53
+
+    condiciones  ir al estado 70
+    condicion    ir al estado 55
+    expresion    ir al estado 71
+    termino      ir al estado 45
+    factor       ir al estado 46
+    invocacion   ir al estado 47
+
+
+estado 54
+
+   23 seleccion: IF PAR_ABRE condiciones . PAR_CIERRA bloque
+   24          | IF PAR_ABRE condiciones . PAR_CIERRA bloque ELSE bloque
+   27 condiciones: condiciones . op_logico condicion
+   48 op_logico: . AND
+   49          | . OR
+
+    PAR_CIERRA  desplazar e ir al estado 72
+    OR          desplazar e ir al estado 73
+    AND         desplazar e ir al estado 74
+
+    op_logico  ir al estado 75
+
+
+estado 55
+
+   28 condiciones: condicion .
+
+    $default  reduce usando la regla 28 (condiciones)
+
+
+estado 56
+
+   29 condicion: expresion . op_comparacion expresion
+   31 expresion: expresion . OP_SUMA termino
+   32          | expresion . OP_RESTA termino
+   42 op_comparacion: . OP_MENOR
+   43               | . OP_MENOR_IGUAL
+   44               | . OP_MAYOR
+   45               | . OP_MAYOR_IGUAL
+   46               | . OP_IGUAL
+   47               | . OP_DISTINTO
+
+    OP_IGUAL        desplazar e ir al estado 76
+    OP_SUMA         desplazar e ir al estado 63
+    OP_RESTA        desplazar e ir al estado 64
+    OP_MENOR        desplazar e ir al estado 77
+    OP_MENOR_IGUAL  desplazar e ir al estado 78
+    OP_MAYOR        desplazar e ir al estado 79
+    OP_MAYOR_IGUAL  desplazar e ir al estado 80
+    OP_DISTINTO     desplazar e ir al estado 81
+
+    op_comparacion  ir al estado 82
+
+
+estado 57
+
+   10 declaracion: VAR ID PUNTO_Y_COMA .
+
+    $default  reduce usando la regla 10 (declaracion)
+
+
+estado 58
+
+   11 lista_sentencias: lista_sentencias . sentencia
+   13 sentencia: . asignacion
+   14          | . seleccion
+   15          | . iteracion
+   16          | . salida
+   17          | . retorno
+   18          | . invocacion PUNTO_Y_COMA
+   19 asignacion: . ID OP_ASIG expresion PUNTO_Y_COMA
+   20 retorno: . RETURN expresion PUNTO_Y_COMA
+   21 salida: . WRITE PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA
+   22       | . WRITE PAR_ABRE CADENA PAR_CIERRA PUNTO_Y_COMA
+   23 seleccion: . IF PAR_ABRE condiciones PAR_CIERRA bloque
+   24          | . IF PAR_ABRE condiciones PAR_CIERRA bloque ELSE bloque
+   25 iteracion: . LOOP bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA
+   26 bloque: LLAVE_ABRE lista_sentencias . LLAVE_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID            desplazar e ir al estado 19
+    LLAVE_CIERRA  desplazar e ir al estado 83
+    IF            desplazar e ir al estado 20
+    LOOP          desplazar e ir al estado 22
+    WRITE         desplazar e ir al estado 23
+    RETURN        desplazar e ir al estado 24
+
+    sentencia   ir al estado 49
+    asignacion  ir al estado 28
+    retorno     ir al estado 29
+    salida      ir al estado 30
+    seleccion   ir al estado 31
+    iteracion   ir al estado 32
+    invocacion  ir al estado 33
+
+
+estado 59
+
+   25 iteracion: LOOP bloque UNTIL . PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA
+
+    PAR_ABRE  desplazar e ir al estado 84
+
+
+estado 60
+
+   22 salida: WRITE PAR_ABRE CADENA . PAR_CIERRA PUNTO_Y_COMA
+
+    PAR_CIERRA  desplazar e ir al estado 85
+
+
+estado 61
+
+   21 salida: WRITE PAR_ABRE expresion . PAR_CIERRA PUNTO_Y_COMA
+   31 expresion: expresion . OP_SUMA termino
+   32          | expresion . OP_RESTA termino
+
+    OP_SUMA     desplazar e ir al estado 63
+    OP_RESTA    desplazar e ir al estado 64
+    PAR_CIERRA  desplazar e ir al estado 86
+
+
+estado 62
+
+   31 expresion: expresion . OP_SUMA termino
+   32          | expresion . OP_RESTA termino
+   40 factor: PAR_ABRE expresion . PAR_CIERRA
+
+    OP_SUMA     desplazar e ir al estado 63
+    OP_RESTA    desplazar e ir al estado 64
+    PAR_CIERRA  desplazar e ir al estado 87
+
+
+estado 63
+
+   31 expresion: expresion OP_SUMA . termino
+   34 termino: . termino OP_MUL factor
+   35        | . termino OP_DIV factor
+   36        | . factor
+   37 factor: . ID
+   38       | . CTE
+   39       | . invocacion
+   40       | . PAR_ABRE expresion PAR_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID        desplazar e ir al estado 41
+    CTE       desplazar e ir al estado 42
+    PAR_ABRE  desplazar e ir al estado 43
+
+    termino     ir al estado 88
+    factor      ir al estado 46
+    invocacion  ir al estado 47
+
+
+estado 64
+
+   32 expresion: expresion OP_RESTA . termino
+   34 termino: . termino OP_MUL factor
+   35        | . termino OP_DIV factor
+   36        | . factor
+   37 factor: . ID
+   38       | . CTE
+   39       | . invocacion
+   40       | . PAR_ABRE expresion PAR_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID        desplazar e ir al estado 41
+    CTE       desplazar e ir al estado 42
+    PAR_ABRE  desplazar e ir al estado 43
+
+    termino     ir al estado 89
+    factor      ir al estado 46
+    invocacion  ir al estado 47
+
+
+estado 65
+
+   20 retorno: RETURN expresion PUNTO_Y_COMA .
+
+    $default  reduce usando la regla 20 (retorno)
+
+
+estado 66
+
+   34 termino: termino OP_MUL . factor
+   37 factor: . ID
+   38       | . CTE
+   39       | . invocacion
+   40       | . PAR_ABRE expresion PAR_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID        desplazar e ir al estado 41
+    CTE       desplazar e ir al estado 42
+    PAR_ABRE  desplazar e ir al estado 43
+
+    factor      ir al estado 90
+    invocacion  ir al estado 47
+
+
+estado 67
+
+   35 termino: termino OP_DIV . factor
+   37 factor: . ID
+   38       | . CTE
+   39       | . invocacion
+   40       | . PAR_ABRE expresion PAR_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID        desplazar e ir al estado 41
+    CTE       desplazar e ir al estado 42
+    PAR_ABRE  desplazar e ir al estado 43
+
+    factor      ir al estado 91
+    invocacion  ir al estado 47
+
+
+estado 68
+
+   19 asignacion: ID OP_ASIG expresion PUNTO_Y_COMA .
+
+    $default  reduce usando la regla 19 (asignacion)
+
+
+estado 69
+
+   41 invocacion: ID PAR_ABRE expresion PAR_CIERRA .
+
+    $default  reduce usando la regla 41 (invocacion)
+
+
+estado 70
+
+   27 condiciones: condiciones . op_logico condicion
+   30 condicion: PAR_ABRE condiciones . PAR_CIERRA
+   48 op_logico: . AND
+   49          | . OR
+
+    PAR_CIERRA  desplazar e ir al estado 92
+    OR          desplazar e ir al estado 73
+    AND         desplazar e ir al estado 74
+
+    op_logico  ir al estado 75
+
+
+estado 71
+
+   29 condicion: expresion . op_comparacion expresion
+   31 expresion: expresion . OP_SUMA termino
+   32          | expresion . OP_RESTA termino
+   40 factor: PAR_ABRE expresion . PAR_CIERRA
+   42 op_comparacion: . OP_MENOR
+   43               | . OP_MENOR_IGUAL
+   44               | . OP_MAYOR
+   45               | . OP_MAYOR_IGUAL
+   46               | . OP_IGUAL
+   47               | . OP_DISTINTO
+
+    OP_IGUAL        desplazar e ir al estado 76
+    OP_SUMA         desplazar e ir al estado 63
+    OP_RESTA        desplazar e ir al estado 64
+    OP_MENOR        desplazar e ir al estado 77
+    OP_MENOR_IGUAL  desplazar e ir al estado 78
+    OP_MAYOR        desplazar e ir al estado 79
+    OP_MAYOR_IGUAL  desplazar e ir al estado 80
+    OP_DISTINTO     desplazar e ir al estado 81
+    PAR_CIERRA      desplazar e ir al estado 87
+
+    op_comparacion  ir al estado 82
+
+
+estado 72
+
+   23 seleccion: IF PAR_ABRE condiciones PAR_CIERRA . bloque
+   24          | IF PAR_ABRE condiciones PAR_CIERRA . bloque ELSE bloque
+   26 bloque: . LLAVE_ABRE lista_sentencias LLAVE_CIERRA
+
+    LLAVE_ABRE  desplazar e ir al estado 38
+
+    bloque  ir al estado 93
+
+
+estado 73
+
+   49 op_logico: OR .
+
+    $default  reduce usando la regla 49 (op_logico)
+
+
+estado 74
+
+   48 op_logico: AND .
+
+    $default  reduce usando la regla 48 (op_logico)
+
+
+estado 75
+
+   27 condiciones: condiciones op_logico . condicion
+   29 condicion: . expresion op_comparacion expresion
+   30          | . PAR_ABRE condiciones PAR_CIERRA
+   31 expresion: . expresion OP_SUMA termino
+   32          | . expresion OP_RESTA termino
+   33          | . termino
+   34 termino: . termino OP_MUL factor
+   35        | . termino OP_DIV factor
+   36        | . factor
+   37 factor: . ID
+   38       | . CTE
+   39       | . invocacion
+   40       | . PAR_ABRE expresion PAR_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID        desplazar e ir al estado 41
+    CTE       desplazar e ir al estado 42
+    PAR_ABRE  desplazar e ir al estado 53
+
+    condicion   ir al estado 94
+    expresion   ir al estado 56
+    termino     ir al estado 45
+    factor      ir al estado 46
+    invocacion  ir al estado 47
+
+
+estado 76
+
+   46 op_comparacion: OP_IGUAL .
+
+    $default  reduce usando la regla 46 (op_comparacion)
+
+
+estado 77
+
+   42 op_comparacion: OP_MENOR .
+
+    $default  reduce usando la regla 42 (op_comparacion)
+
+
+estado 78
+
+   43 op_comparacion: OP_MENOR_IGUAL .
+
+    $default  reduce usando la regla 43 (op_comparacion)
+
+
+estado 79
+
+   44 op_comparacion: OP_MAYOR .
+
+    $default  reduce usando la regla 44 (op_comparacion)
+
+
+estado 80
+
+   45 op_comparacion: OP_MAYOR_IGUAL .
+
+    $default  reduce usando la regla 45 (op_comparacion)
+
+
+estado 81
+
+   47 op_comparacion: OP_DISTINTO .
+
+    $default  reduce usando la regla 47 (op_comparacion)
+
+
+estado 82
+
+   29 condicion: expresion op_comparacion . expresion
+   31 expresion: . expresion OP_SUMA termino
+   32          | . expresion OP_RESTA termino
+   33          | . termino
+   34 termino: . termino OP_MUL factor
+   35        | . termino OP_DIV factor
+   36        | . factor
+   37 factor: . ID
+   38       | . CTE
+   39       | . invocacion
+   40       | . PAR_ABRE expresion PAR_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID        desplazar e ir al estado 41
+    CTE       desplazar e ir al estado 42
+    PAR_ABRE  desplazar e ir al estado 43
+
+    expresion   ir al estado 95
+    termino     ir al estado 45
+    factor      ir al estado 46
+    invocacion  ir al estado 47
+
+
+estado 83
+
+   26 bloque: LLAVE_ABRE lista_sentencias LLAVE_CIERRA .
+
+    $default  reduce usando la regla 26 (bloque)
+
+
+estado 84
+
+   25 iteracion: LOOP bloque UNTIL PAR_ABRE . condiciones PAR_CIERRA PUNTO_Y_COMA
+   27 condiciones: . condiciones op_logico condicion
+   28            | . condicion
+   29 condicion: . expresion op_comparacion expresion
+   30          | . PAR_ABRE condiciones PAR_CIERRA
+   31 expresion: . expresion OP_SUMA termino
+   32          | . expresion OP_RESTA termino
+   33          | . termino
+   34 termino: . termino OP_MUL factor
+   35        | . termino OP_DIV factor
+   36        | . factor
+   37 factor: . ID
+   38       | . CTE
+   39       | . invocacion
+   40       | . PAR_ABRE expresion PAR_CIERRA
+   41 invocacion: . ID PAR_ABRE expresion PAR_CIERRA
+
+    ID        desplazar e ir al estado 41
+    CTE       desplazar e ir al estado 42
+    PAR_ABRE  desplazar e ir al estado 53
+
+    condiciones  ir al estado 96
+    condicion    ir al estado 55
+    expresion    ir al estado 56
+    termino      ir al estado 45
+    factor       ir al estado 46
+    invocacion   ir al estado 47
+
+
+estado 85
+
+   22 salida: WRITE PAR_ABRE CADENA PAR_CIERRA . PUNTO_Y_COMA
+
+    PUNTO_Y_COMA  desplazar e ir al estado 97
+
+
+estado 86
+
+   21 salida: WRITE PAR_ABRE expresion PAR_CIERRA . PUNTO_Y_COMA
+
+    PUNTO_Y_COMA  desplazar e ir al estado 98
+
+
+estado 87
+
+   40 factor: PAR_ABRE expresion PAR_CIERRA .
+
+    $default  reduce usando la regla 40 (factor)
+
+
+estado 88
+
+   31 expresion: expresion OP_SUMA termino .  [OP_IGUAL, OP_SUMA, OP_RESTA, OP_MENOR, OP_MENOR_IGUAL, OP_MAYOR, OP_MAYOR_IGUAL, OP_DISTINTO, PUNTO_Y_COMA, PAR_CIERRA, OR, AND]
+   34 termino: termino . OP_MUL factor
+   35        | termino . OP_DIV factor
+
+    OP_MUL  desplazar e ir al estado 66
+    OP_DIV  desplazar e ir al estado 67
+
+    $default  reduce usando la regla 31 (expresion)
+
+
+estado 89
+
+   32 expresion: expresion OP_RESTA termino .  [OP_IGUAL, OP_SUMA, OP_RESTA, OP_MENOR, OP_MENOR_IGUAL, OP_MAYOR, OP_MAYOR_IGUAL, OP_DISTINTO, PUNTO_Y_COMA, PAR_CIERRA, OR, AND]
+   34 termino: termino . OP_MUL factor
+   35        | termino . OP_DIV factor
+
+    OP_MUL  desplazar e ir al estado 66
+    OP_DIV  desplazar e ir al estado 67
+
+    $default  reduce usando la regla 32 (expresion)
+
+
+estado 90
+
+   34 termino: termino OP_MUL factor .
+
+    $default  reduce usando la regla 34 (termino)
+
+
+estado 91
+
+   35 termino: termino OP_DIV factor .
+
+    $default  reduce usando la regla 35 (termino)
+
+
+estado 92
+
+   30 condicion: PAR_ABRE condiciones PAR_CIERRA .
+
+    $default  reduce usando la regla 30 (condicion)
+
+
+estado 93
+
+   23 seleccion: IF PAR_ABRE condiciones PAR_CIERRA bloque .  [ID, LLAVE_CIERRA, IF, LOOP, WRITE, RETURN]
+   24          | IF PAR_ABRE condiciones PAR_CIERRA bloque . ELSE bloque
+
+    ELSE  desplazar e ir al estado 99
+
+    $default  reduce usando la regla 23 (seleccion)
+
+
+estado 94
+
+   27 condiciones: condiciones op_logico condicion .
+
+    $default  reduce usando la regla 27 (condiciones)
+
+
+estado 95
+
+   29 condicion: expresion op_comparacion expresion .  [PAR_CIERRA, OR, AND]
+   31 expresion: expresion . OP_SUMA termino
+   32          | expresion . OP_RESTA termino
+
+    OP_SUMA   desplazar e ir al estado 63
+    OP_RESTA  desplazar e ir al estado 64
+
+    $default  reduce usando la regla 29 (condicion)
+
+
+estado 96
+
+   25 iteracion: LOOP bloque UNTIL PAR_ABRE condiciones . PAR_CIERRA PUNTO_Y_COMA
+   27 condiciones: condiciones . op_logico condicion
+   48 op_logico: . AND
+   49          | . OR
+
+    PAR_CIERRA  desplazar e ir al estado 100
+    OR          desplazar e ir al estado 73
+    AND         desplazar e ir al estado 74
+
+    op_logico  ir al estado 75
+
+
+estado 97
+
+   22 salida: WRITE PAR_ABRE CADENA PAR_CIERRA PUNTO_Y_COMA .
+
+    $default  reduce usando la regla 22 (salida)
+
+
+estado 98
+
+   21 salida: WRITE PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA .
+
+    $default  reduce usando la regla 21 (salida)
+
+
+estado 99
+
+   24 seleccion: IF PAR_ABRE condiciones PAR_CIERRA bloque ELSE . bloque
+   26 bloque: . LLAVE_ABRE lista_sentencias LLAVE_CIERRA
+
+    LLAVE_ABRE  desplazar e ir al estado 38
+
+    bloque  ir al estado 101
+
+
+estado 100
+
+   25 iteracion: LOOP bloque UNTIL PAR_ABRE condiciones PAR_CIERRA . PUNTO_Y_COMA
+
+    PUNTO_Y_COMA  desplazar e ir al estado 102
+
+
+estado 101
+
+   24 seleccion: IF PAR_ABRE condiciones PAR_CIERRA bloque ELSE bloque .
+
+    $default  reduce usando la regla 24 (seleccion)
+
+
+estado 102
+
+   25 iteracion: LOOP bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA .
+
+    $default  reduce usando la regla 25 (iteracion)
