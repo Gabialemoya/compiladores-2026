@@ -150,7 +150,7 @@ int traducir_token(int interno) {
 }
 
 void yyerror(const char* msg) {
-    printf("Linea %d: Error sintactico E5: sentencia mal formada\n", linea_actual);
+    printf("Linea %d: Error sintactico E5: %s\n", linea_actual, msg);
     hay_errores = 1;
 }
 
@@ -160,6 +160,7 @@ int agregar_ts(const char* nombre, const char* tipo, const char* valor, int long
             return i;
         }
     }
+    if (ts_size >= MAX_TS) return -1;
     strcpy(ts[ts_size].nombre, nombre);
     strcpy(ts[ts_size].tipo, tipo);
     if (valor) strcpy(ts[ts_size].valor, valor);
@@ -328,11 +329,12 @@ void (*proceso[23][18])(void) = {
 int yylex(void) {
     int estado = 0;
     while (1) {
+        int es_eof = 0;
         int c = fgetc(fuente);
         if (c == EOF) {
             if (estado == 0) return 0; 
-            if (estado == 10) c = '\n';
-            else c = ' ';
+            es_eof = 1;
+            c = (estado == 10) ? '\n' : ' ';
         }
         char_actual = c;
         int col = get_evento(char_actual);
@@ -343,7 +345,7 @@ int yylex(void) {
             continue;
         }
 
-        if (char_actual == '\n') linea_actual++;
+        if (!es_eof && char_actual == '\n') linea_actual++;
 
         int token_temp = matriz_tokens[estado][col];
         token_actual = token_temp;
@@ -361,7 +363,7 @@ int yylex(void) {
             }
             hay_errores = 1;
             
-            if (char_actual != EOF) {
+            if (!es_eof) {
                 ungetc(char_actual, fuente);
                 if (char_actual == '\n') linea_actual--;
             }
@@ -374,12 +376,11 @@ int yylex(void) {
             int hacer_unread = 1;
             if (estado == 21 && col == COL_COMILLA) hacer_unread = 0;
             if (estado == 10 && col == COL_EOL) hacer_unread = 0;
+            if (es_eof) hacer_unread = 0;
 
             if (hacer_unread) {
-                if (char_actual != EOF) { 
-                    ungetc(char_actual, fuente);
-                    if (char_actual == '\n') linea_actual--;
-                }
+                ungetc(char_actual, fuente);
+                if (char_actual == '\n') linea_actual--;
             }
 
             if (token_actual != -1) {
