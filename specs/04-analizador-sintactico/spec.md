@@ -21,10 +21,12 @@ Reconocer la estructura del programa fuente aplicando las reglas gramaticales de
 
 `yylex` devuelve el código del token. Ante fin de archivo devuelve `0`. Si el token es `ID`, `CTE` o `CADENA`, deja en `yylval` el índice de la tabla de símbolos. Las acciones leen ese valor.
 
-| Retorno de `yyparse` | Significado |
-| --- | --- |
-| `0` | El léxico entregó el fin de archivo y el sintáctico aceptó |
-| `1` | Hubo un error. `yyerrok` restablece el analizador a su modo normal |
+
+| Retorno de `yyparse` | Significado                                                        |
+| -------------------- | ------------------------------------------------------------------ |
+| `0`                  | El léxico entregó el fin de archivo y el sintáctico aceptó         |
+| `1`                  | Hubo un error. `yyerrok` restablece el analizador a su modo normal |
+
 
 La estrategia de recuperación queda fuera de esta etapa (§1.4).
 
@@ -33,11 +35,15 @@ La estrategia de recuperación queda fuera de esta etapa (§1.4).
 - Los tokens que entrega `yylex`, uno por llamada, hasta recibir `0`.
 - El valor semántico en `yylval` para `ID`, `CTE` y `CADENA`.
 
+
+
 ### 1.4 Salida
 
 1. **Veredicto**: el programa pertenece o no al lenguaje.
 2. **Errores sintácticos** reportados por `yyerror`, con la línea del fuente.
 3. **Punto de enganche** para las acciones semánticas de etapas posteriores.
+
+
 
 ### 1.5 Fuera de alcance
 
@@ -49,11 +55,13 @@ Queda fuera de esta spec, y se especifica en etapas posteriores:
 
 Los controles semánticos R1, R2 y R7 también quedan para después. Están definidos en `01-diseno` §11; el error de cada una, en §12:
 
-| Regla | Definición | Error |
-| --- | --- | --- |
-| R1 | Usar un `ID` no declarado es error semántico | E6 |
-| R2 | Declarar dos veces el mismo `ID` es error semántico | E7 |
-| R7 | Llamada recursiva directa: error semántico | E9 |
+
+| Regla | Definición                                          | Error |
+| ----- | --------------------------------------------------- | ----- |
+| R1    | Usar un `ID` no declarado es error semántico        | E6    |
+| R2    | Declarar dos veces el mismo `ID` es error semántico | E7    |
+| R7    | Llamada recursiva directa: error semántico          | E9    |
+
 
 El reconocimiento de tokens ya está especificado en `specs/03-analizador-lexico/`.
 
@@ -69,18 +77,22 @@ Las acciones se escriben físicamente dentro de las reglas de §5, pero **su con
 
 ---
 
+
+
 ## 2. Decisiones propias de esta fase
 
-| # | Decisión | Valor |
-| --- | --- | --- |
-| S1 | Herramienta | Bison, en C. La consigna general 1 exige integración con YACC |
-| S2 | Lenguaje de las acciones | C. Consigna general 2 |
-| S3 | Generador de léxico | **Ninguno.** No se usa Flex: `yylex` es manual (spec-etapa-2, Y1) |
-| S4 | Códigos de token | Los asigna Bison y los publica como `#define` en `parser.tab.h`. `yylex` traduce con `traducir_token` (spec-etapa-2 §3) |
-| S5 | Valor semántico | `%union` con un entero: índice en la tabla de símbolos (spec-etapa-2, Y4) |
-| S6 | Precedencia y asociatividad | **No se declaran.** Quedan codificadas en la jerarquía `expresion` → `termino` → `factor` |
-| S7 | Axioma | `programa`, declarado con `%start` |
-| S8 | Mensajes de error | Modo detallado de Bison, para que `yyerror` reciba qué se esperaba |
+
+| #   | Decisión                    | Valor                                                                                                                   |
+| --- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| S1  | Herramienta                 | Bison, en C. La consigna general 1 exige integración con YACC                                                           |
+| S2  | Lenguaje de las acciones    | C. Consigna general 2                                                                                                   |
+| S3  | Generador de léxico         | **Ninguno.** No se usa Flex: `yylex` es manual (spec-etapa-2, Y1)                                                       |
+| S4  | Códigos de token            | Los asigna Bison y los publica como `#define` en `parser.tab.h`. `yylex` traduce con `traducir_token` (spec-etapa-2 §3) |
+| S5  | Valor semántico             | `%union` con un entero: índice en la tabla de símbolos (spec-etapa-2, Y4)                                               |
+| S6  | Precedencia y asociatividad | **No se declaran.** Quedan codificadas en la jerarquía `expresion` → `termino` → `factor`                               |
+| S7  | Axioma                      | `programa`, declarado con `%start`                                                                                      |
+| S8  | Mensajes de error           | Modo detallado de Bison, para que `yyerror` reciba qué se esperaba                                                      |
+
 
 **Sobre S6.** `%left`, `%right` y `%nonassoc` sirven cuando una misma regla admite dos lecturas, como `expresion - expresion - expresion`. Los tokens de una misma línea comparten nivel; lo declarado más abajo tiene mayor precedencia. `%prec` cambia la precedencia de una sola regla. La guía lo usa para el menos unario: el `-` binario queda por debajo de `*` y `/`, y el unario por encima, mediante un terminal ficticio que el léxico no devuelve.
 
@@ -88,16 +100,20 @@ En RG una constante negativa llega como un único `CTE` (estado 7 del autómata)
 
 ---
 
+
+
 ## 3. Estructura de `parser.y`
 
 El archivo tiene cuatro secciones. Los delimitadores son los de Bison.
 
-| Sección | Delimitador | Contenido en RG |
-| --- | --- | --- |
-| Declaraciones | `%{` … `%}` | Includes del léxico, prototipos de `yylex` y `yyerror`, variables globales |
-| Tokens | a continuación, antes del primer `%%` | `%union`, `%token`, `%start` |
-| Reglas | entre `%%` y `%%` | Las producciones de `01-diseno` §6 |
-| Código | después del segundo `%%` | `main` y las funciones auxiliares que invoquen las acciones. `yyerror` la provee el léxico |
+
+| Sección       | Delimitador                           | Contenido en RG                                                                            |
+| ------------- | ------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Declaraciones | `%{` … `%}`                           | Includes del léxico, prototipos de `yylex` y `yyerror`, variables globales                 |
+| Tokens        | a continuación, antes del primer `%%` | `%union`, `%token`, `%start`                                                               |
+| Reglas        | entre `%%` y `%%`                     | Las producciones de `01-diseno` §6                                                         |
+| Código        | después del segundo `%%`              | `main` y las funciones auxiliares que invoquen las acciones. `yyerror` la provee el léxico |
+
 
 Convenciones de las reglas:
 
@@ -108,7 +124,11 @@ Convenciones de las reglas:
 
 ---
 
+
+
 ## 4. Declaraciones
+
+
 
 ### 4.1 Valor semántico
 
@@ -134,7 +154,7 @@ Un solo campo: todos los tokens con valor transportan un índice de la tabla de 
 %start programa
 ```
 
-Son 29 tokens. **`READ` no se declara:** fue retirado de la gramática, de modo que `read` se reconoce como identificador común. Registrarlo en la bitácora de `01-diseno` para que la tabla de tokens quede coherente.
+Son 29 tokens. `**READ` no se declara:** fue retirado de la gramática, de modo que `read` se reconoce como identificador común. Registrarlo en la bitácora de `01-diseno` para que la tabla de tokens quede coherente.
 
 `%start` nombra el axioma. Si se omite, Bison toma el no terminal de la primera regla. En RG se declara (S7).
 
@@ -142,126 +162,138 @@ La lista de tokens y la gramática de §5 coinciden exactamente.
 
 ---
 
+
+
 ## 5. Gramática
 
 Traducción literal de `01-diseno` §6 a la sintaxis de Bison. **Ninguna regla se modifica, reordena ni corrige.**
 
+El número de la izquierda es el que Bison asigna en `parser.output` y el que imprime la traza (`Reducing stack by rule N`). La regla 0 es `$accept: programa $end`, que agrega el generador y no forma parte de esta gramática.
+
 ```
-programa            : lista_funciones funcion_main
-                    | funcion_main
-                    ;
+ 1  programa            : lista_funciones funcion_main
+ 2                      | funcion_main
+                        ;
 
-lista_funciones     : lista_funciones definicion_funcion
-                    | definicion_funcion
-                    ;
+ 3  lista_funciones     : lista_funciones definicion_funcion
+ 4                      | definicion_funcion
+                        ;
 
-definicion_funcion  : ID PAR_ABRE ID PAR_CIERRA cuerpo
-                    ;
+ 5  definicion_funcion  : ID PAR_ABRE ID PAR_CIERRA cuerpo
+                        ;
 
-funcion_main        : MAIN PAR_ABRE PAR_CIERRA cuerpo
-                    ;
+ 6  funcion_main        : MAIN PAR_ABRE PAR_CIERRA cuerpo
+                        ;
 
-cuerpo              : LLAVE_ABRE declaraciones lista_sentencias LLAVE_CIERRA
-                    ;
+ 7  cuerpo              : LLAVE_ABRE declaraciones lista_sentencias LLAVE_CIERRA
+                        ;
 
-declaraciones       : declaraciones declaracion
-                    | %empty
-                    ;
+ 8  declaraciones       : declaraciones declaracion
+ 9                      | %empty
+                        ;
 
-declaracion         : VAR ID PUNTO_Y_COMA
-                    ;
+10  declaracion         : VAR ID PUNTO_Y_COMA
+                        ;
 
-lista_sentencias    : lista_sentencias sentencia
-                    | sentencia
-                    ;
+11  lista_sentencias    : lista_sentencias sentencia
+12                      | sentencia
+                        ;
 
-sentencia           : asignacion
-                    | seleccion
-                    | iteracion
-                    | salida
-                    | retorno
-                    | invocacion PUNTO_Y_COMA
-                    ;
+13  sentencia           : asignacion
+14                      | seleccion
+15                      | iteracion
+16                      | salida
+17                      | retorno
+18                      | invocacion PUNTO_Y_COMA
+                        ;
 
-asignacion          : ID OP_ASIG expresion PUNTO_Y_COMA
-                    ;
+19  asignacion          : ID OP_ASIG expresion PUNTO_Y_COMA
+                        ;
 
-retorno             : RETURN expresion PUNTO_Y_COMA
-                    ;
+20  retorno             : RETURN expresion PUNTO_Y_COMA
+                        ;
 
-salida              : WRITE PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA
-                    | WRITE PAR_ABRE CADENA PAR_CIERRA PUNTO_Y_COMA
-                    ;
+21  salida              : WRITE PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA
+22                      | WRITE PAR_ABRE CADENA PAR_CIERRA PUNTO_Y_COMA
+                        ;
 
-seleccion           : IF PAR_ABRE condiciones PAR_CIERRA bloque
-                    | IF PAR_ABRE condiciones PAR_CIERRA bloque ELSE bloque
-                    ;
+23  seleccion           : IF PAR_ABRE condiciones PAR_CIERRA bloque
+24                      | IF PAR_ABRE condiciones PAR_CIERRA bloque ELSE bloque
+                        ;
 
-iteracion           : LOOP bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA
-                    ;
+25  iteracion           : LOOP bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA
+                        ;
 
-bloque              : LLAVE_ABRE lista_sentencias LLAVE_CIERRA
-                    ;
+26  bloque              : LLAVE_ABRE lista_sentencias LLAVE_CIERRA
+                        ;
 
-condiciones         : condiciones op_logico condicion
-                    | condicion
-                    ;
+27  condiciones         : condiciones op_logico condicion
+28                      | condicion
+                        ;
 
-condicion           : expresion op_comparacion expresion
-                    | PAR_ABRE condiciones PAR_CIERRA
-                    ;
+29  condicion           : expresion op_comparacion expresion
+30                      | PAR_ABRE condiciones PAR_CIERRA
+                        ;
 
-expresion           : expresion OP_SUMA termino
-                    | expresion OP_RESTA termino
-                    | termino
-                    ;
+31  expresion           : expresion OP_SUMA termino
+32                      | expresion OP_RESTA termino
+33                      | termino
+                        ;
 
-termino             : termino OP_MUL factor
-                    | termino OP_DIV factor
-                    | factor
-                    ;
+34  termino             : termino OP_MUL factor
+35                      | termino OP_DIV factor
+36                      | factor
+                        ;
 
-factor              : ID
-                    | CTE
-                    | invocacion
-                    | PAR_ABRE expresion PAR_CIERRA
-                    ;
+37  factor              : ID
+38                      | CTE
+39                      | invocacion
+40                      | PAR_ABRE expresion PAR_CIERRA
+                        ;
 
-invocacion          : ID PAR_ABRE expresion PAR_CIERRA
-                    ;
+41  invocacion          : ID PAR_ABRE expresion PAR_CIERRA
+                        ;
 
-op_comparacion      : OP_MENOR
-                    | OP_MENOR_IGUAL
-                    | OP_MAYOR
-                    | OP_MAYOR_IGUAL
-                    | OP_IGUAL
-                    | OP_DISTINTO
-                    ;
+42  op_comparacion      : OP_MENOR
+43                      | OP_MENOR_IGUAL
+44                      | OP_MAYOR
+45                      | OP_MAYOR_IGUAL
+46                      | OP_IGUAL
+47                      | OP_DISTINTO
+                        ;
 
-op_logico           : AND
-                    | OR
-                    ;
+48  op_logico           : AND
+49                      | OR
+                        ;
 ```
+
+
 
 ### 5.1 Notas de traducción
 
-| Punto | Nota |
-| --- | --- |
-| `%empty` | Es la forma en que Bison escribe la producción vacía de `declaraciones`. El comentario `/* vacio */` del documento de diseño no es sintaxis |
-| `main` contra funciones | `funcion_main` usa el terminal `MAIN` y `definicion_funcion` usa `ID`, de modo que no se superponen |
-| `ID` seguido de `(` | Va a `invocacion`; `ID` seguido de cualquier otra cosa reduce a `factor`. Un símbolo de anticipación alcanza |
-| Llaves obligatorias | Todos los cuerpos son `bloque` con llaves, así que no aparece el problema del `else` colgante |
-| `CADENA` | Solo aparece en `salida`, nunca como `factor`. Así `"texto" + 1/1` lo rechaza la sintaxis |
-| Declaraciones | Solo en `cuerpo`, no en `bloque`: se declaran al inicio de cada función, nunca dentro de un `if` o un `loop` |
+
+| Punto                   | Nota                                                                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `%empty`                | Es la forma en que Bison escribe la producción vacía de `declaraciones`. El comentario `/* vacio */` del documento de diseño no es sintaxis |
+| `main` contra funciones | `funcion_main` usa el terminal `MAIN` y `definicion_funcion` usa `ID`, de modo que no se superponen                                         |
+| `ID` seguido de `(`     | Va a `invocacion`; `ID` seguido de cualquier otra cosa reduce a `factor`. Un símbolo de anticipación alcanza                                |
+| Llaves obligatorias     | Todos los cuerpos son `bloque` con llaves, así que no aparece el problema del `else` colgante                                               |
+| `CADENA`                | Solo aparece en `salida`, nunca como `factor`. Así `"texto" + 1/1` lo rechaza la sintaxis                                                   |
+| Declaraciones           | Solo en `cuerpo`, no en `bloque`: se declaran al inicio de cada función, nunca dentro de un `if` o un `loop`                                |
+
+
+
 
 ### 5.2 Acciones
 
 Una acción se ejecuta cuando la regla se reconoce. Es código C entre `{` y `}`, y la regla sigue cerrando con `;`.
 
-| Pseudovariable | Qué es |
-| --- | --- |
+
+| Pseudovariable      | Qué es                                                      |
+| ------------------- | ----------------------------------------------------------- |
 | `$1`, `$2`, `$3`, … | Valor del 1.º, 2.º, 3.º… símbolo del lado derecho, ya leído |
-| `$$` | Valor que devuelve el lado izquierdo |
+| `$$`                | Valor que devuelve el lado izquierdo                        |
+
 
 En `A: B C D ;`, `$1` es el valor de `B`, `$2` el de `C` y `$3` el de `D`. Si la regla no asigna `$$`, el valor es el del primer símbolo.
 
@@ -271,14 +303,18 @@ En RG ese valor es `indice_ts` (S5). El contenido de cada acción —qué tercet
 
 ---
 
+
+
 ## 6. Conflictos
 
 Una gramática es ambigua si alguna cadena puede estructurarse de dos o más formas. Bison lo detecta al generar el parser e informa la cantidad de conflictos. Igual produce el analizador, eligiendo un paso:
 
-| Conflicto | Elección por defecto |
-| --- | --- |
-| Shift/reduce | Shift |
+
+| Conflicto     | Elección por defecto                       |
+| ------------- | ------------------------------------------ |
+| Shift/reduce  | Shift                                      |
 | Reduce/reduce | La regla que aparece antes en la gramática |
+
 
 Una acción en medio de una regla también puede provocar un conflicto. En ese caso, resolverlo con precedencia produce un analizador incorrecto: hay que revisar la regla.
 
@@ -301,6 +337,8 @@ Cero conflictos es el objetivo. Si queda alguno, documentar en la bitácora cuá
 
 ---
 
+
+
 ## 7. Punto de entrada
 
 ```
@@ -321,24 +359,30 @@ main:
 
 ---
 
+
+
 ## 8. Estructura y compilación
 
 ```
 src/parser/parser.y        gramática, tokens, acciones y main
 src/lexico/lexico.c        yylex, matrices y acciones semánticas del AL
-src/lexico/lexico.h        prototipos
+src/lexico/lexico.h        cabecera del léxico
 ```
+
+`lexico.h` existe porque el parser y el léxico se compilan por separado. `yyparse` llama a `yylex` y a `yyerror`, y el `main` de `parser.y` abre `fuente`, mira `hay_errores` y exporta la tabla con `mostrarTS`. Esas definiciones están en `lexico.c`; la cabecera las publica para que `parser.y` pueda usarlas sin ver el autómata. Está escrita a mano: Bison solo genera `parser.tab.h` y no se usa Flex (S3). Declara `Simbolo`, `MAX_LEXEMA`, `MAX_TS`, las globales `fuente`, `linea_actual`, `hay_errores`, `ts` y `ts_size`, y los prototipos `yylex`, `yyerror`, `agregar_ts` y `mostrarTS`.
 
 ```
 win_bison -d --report=all -o src/parser/parser.tab.c src/parser/parser.y
 gcc src/parser/parser.tab.c src/lexico/lexico.c -o compilador.exe
 ```
 
-| Salida | Contenido |
-| --- | --- |
-| `parser.tab.c` | El parser generado |
-| `parser.tab.h` | Los `#define` de los tokens (`-d`) |
+
+| Salida          | Contenido                                  |
+| --------------- | ------------------------------------------ |
+| `parser.tab.c`  | El parser generado                         |
+| `parser.tab.h`  | Los `#define` de los tokens (`-d`)         |
 | `parser.output` | Estados LALR y conflictos (`--report=all`) |
+
 
 `lexico.c` incluye `parser.tab.h`. La dependencia es en un solo sentido: el léxico conoce los códigos del parser.
 
@@ -346,51 +390,32 @@ gcc src/parser/parser.tab.c src/lexico/lexico.c -o compilador.exe
 
 ---
 
+
+
 ## 9. Casos de prueba de esta fase
+
+
 
 ### 9.1 Programas correctos
 
-Los seis de `tests/correctos/` deben parsear completos, llegando al axioma y sin errores.
+Los siete de `tests/correctos/` deben parsear completos, llegando al axioma y sin errores.
 
-| Caso | Qué ejercita de la gramática |
-| --- | --- |
-| `p1_suma` | Asignaciones, `write` de expresión y de literal |
-| `p2_normalizar` | Constantes y salida |
-| `p3_loop_until` | `iteracion` con condición al final |
-| `p4_if_else` | `seleccion` con `else`, `condiciones` con `and`, `or` y paréntesis |
-| `p5_funcion` | `definicion_funcion`, `invocacion` como sentencia y como factor, `retorno` |
-| `p6_overflow` | Iteración con acumulación |
+
+| Caso             | Qué ejercita de la gramática                                               |
+| ---------------- | -------------------------------------------------------------------------- |
+| `p1_suma`        | Asignaciones, `write` de expresión y de literal                            |
+| `p2_normalizar`  | Constantes y salida                                                        |
+| `p3_loop_until`  | `iteracion` con condición al final                                         |
+| `p4_if_else`     | `seleccion` con `else`, `condiciones` con `and`, `or` y paréntesis         |
+| `p5_funcion`     | `definicion_funcion`, `invocacion` como sentencia y como factor, `retorno` |
+| `p6_overflow`    | Iteración con acumulación                                                  |
+| `p7_condiciones` | `seleccion` sin `else`, condiciones entre paréntesis unidas por `and`      |
+
+
+
 
 ### 9.2 Programas con error sintáctico
 
 `tests/errores-lexicos-sintacticos/es1_sentencia.rg` debe ser rechazado, con la línea correcta informada.
 
 Verificar además que los programas con **error léxico** (`el1_caracter`, `el2_constante`) no interrumpan el parsing: el léxico informa y sigue entregando tokens.
-
-### 9.3 Prueba de cobertura
-
-Toda producción de §5 debe quedar ejercitada por al menos un caso. Si alguna no se alcanza nunca, agregar un programa que la cubra o justificar por qué no es alcanzable.
-
----
-
-## 10. Criterios de aceptación
-
-- `bison -d` genera el parser sin conflictos, o con los conflictos documentados en la bitácora.
-- La gramática del `parser.y` coincide producción por producción con `01-diseno` §6.
-- Los 29 tokens declarados coinciden con los que retorna `traducir_token`; ninguno queda sin usar.
-- Los seis programas correctos parsean completos.
-- Los programas con error sintáctico se rechazan informando la línea.
-- Un error léxico no aborta el parsing.
-- No se enlaza Flex.
-
----
-
-## 11. Remisiones
-
-| Tema | Dónde |
-| --- | --- |
-| Contrato de `yylex` y `yylval` | `specs/03-analizador-lexico/spec-etapa-2.md` §3 y §4 |
-| Gramática original | `specs/01-diseno/spec.md` §6 |
-| Catálogo de errores | `specs/01-diseno/spec.md` §12 |
-| R1, R2 y R7 | `specs/01-diseno/spec.md` §11 |
-| Contrato de la tabla de símbolos | `specs/02-tabla-simbolos/spec.md` |

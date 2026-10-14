@@ -5,6 +5,7 @@
 %}
 
 %define parse.error verbose
+%define parse.trace
 
 %union {
     int indice_ts;
@@ -131,6 +132,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    yydebug = 1;
     yyparse();
     fclose(fuente);
 

@@ -545,12 +545,12 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int8 yyrline[] =
 {
-       0,    25,    25,    26,    29,    30,    33,    36,    39,    42,
-      43,    46,    49,    50,    53,    54,    55,    56,    57,    58,
-      61,    64,    67,    68,    71,    72,    75,    78,    81,    82,
-      85,    86,    89,    90,    91,    94,    95,    96,    99,   100,
-     101,   102,   105,   108,   109,   110,   111,   112,   113,   116,
-     117
+       0,    26,    26,    27,    30,    31,    34,    37,    40,    43,
+      44,    47,    50,    51,    54,    55,    56,    57,    58,    59,
+      62,    65,    68,    69,    72,    73,    76,    79,    82,    83,
+      86,    87,    90,    91,    92,    95,    96,    97,   100,   101,
+     102,   103,   106,   109,   110,   111,   112,   113,   114,   117,
+     118
 };
 #endif
 
@@ -1680,7 +1680,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 120 "src/parser/parser.y"
+#line 121 "src/parser/parser.y"
 
 
 int main(int argc, char **argv) {
@@ -1695,6 +1695,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    yydebug = 1;
     yyparse();
     fclose(fuente);
 
