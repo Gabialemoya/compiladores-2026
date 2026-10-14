@@ -1,5 +1,5 @@
 %{
-#include "src/lexico.h"
+#include "lexico.h"
 
 int yyparse(void);
 

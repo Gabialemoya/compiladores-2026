@@ -57,10 +57,11 @@ Las acciones semánticas se escriben físicamente dentro de las reglas de §5, p
 | S5 | Valor semántico | `%union` con un entero: índice en la tabla de símbolos (spec-etapa-2, Y4) |
 | S6 | Precedencia y asociatividad | **No se declaran.** Quedan codificadas en la jerarquía `expresion` → `termino` → `factor` |
 | S7 | Axioma | `programa` |
-| S8 | Mensajes de error | Modo detallado de Bison, para que `yyerror` reciba qué se esperaba |
+| S8 | Mensajes de error | `%error-verbose` (modo detallado de Bison), para que `yyerror` reciba qué se esperaba. Originalmente `%define parse.error verbose` |
 
 **Sobre S6.** Al resolver el signo negativo en el estado 7 del autómata, una constante negativa llega como un único `CTE` y no existe la regla `factor: OP_RESTA factor`. Por eso no hace falta declarar precedencia para el menos unario.
 
+**Sobre S8 (Observación).** Se utiliza `%error-verbose` por compatibilidad con Bison 2.4.1. Esta forma antigua está deprecada en Bison 3.x y genera una advertencia al generar el parser con una versión moderna (en cuyo caso se debe utilizar `%define parse.error verbose`).
 ---
 
 ## 3. Estructura del archivo `parser.y`
@@ -129,7 +130,7 @@ cuerpo              : LLAVE_ABRE declaraciones lista_sentencias LLAVE_CIERRA
                     ;
 
 declaraciones       : declaraciones declaracion
-                    | %empty
+                    | /* vacio */
                     ;
 
 declaracion         : VAR ID PUNTO_Y_COMA
@@ -211,7 +212,7 @@ op_logico           : AND
 
 | Punto | Nota |
 | --- | --- |
-| `%empty` | Es la forma en que Bison escribe la producción vacía de `declaraciones`. El comentario `/* vacio */` del documento de diseño no es sintaxis |
+| `/* vacio */` | Es la forma en que indicamos la producción vacía de `declaraciones` por compatibilidad con Bison 2.4.1. En Bison 3.x se debería utilizar `%empty` |
 | `main` contra funciones | `funcion_main` usa el terminal `MAIN` y `definicion_funcion` usa `ID`, de modo que no se superponen |
 | `ID` seguido de `(` | Va a `invocacion`; `ID` seguido de cualquier otra cosa reduce a `factor`. Un símbolo de anticipación alcanza |
 | Llaves obligatorias | Todos los cuerpos son `bloque` con llaves, así que no aparece el problema del `else` colgante |
@@ -269,15 +270,17 @@ El `main` deja de recorrer el archivo: esa responsabilidad pasó a `yyparse`. La
 
 ## 8. Estructura y compilación
 
+**Versión de Bison:** GNU Bison 2.4.1
+
 ```
-src/parser/parser.y        gramática, tokens, acciones y main
-src/lexico/lexico.c        yylex, matrices y acciones semánticas del AL
-src/lexico/lexico.h        prototipos
+src/parser.y                     gramática, tokens, acciones y main
+src/analizador-lexico-etapa-2.c  yylex, matrices y acciones semánticas del AL
+src/lexico.h                     prototipos
 ```
 
 ```
-bison -d --report=all src/parser/parser.y
-gcc parser.tab.c src/lexico/lexico.c -o compilador
+bison -d --report=all -o parser.tab.c src/parser.y
+gcc -Wall -Wextra -I. -Isrc parser.tab.c src/analizador-lexico-etapa-2.c -o compilador
 ```
 
 `lexico.c` incluye `parser.tab.h` para conocer los códigos de token. La dependencia es en un solo sentido.
