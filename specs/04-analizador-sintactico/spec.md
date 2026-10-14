@@ -94,10 +94,6 @@ Las acciones se escriben físicamente dentro de las reglas de §5, pero **su con
 | S8  | Mensajes de error           | Modo detallado de Bison, para que `yyerror` reciba qué se esperaba                                                      |
 
 
-**Sobre S6.** `%left`, `%right` y `%nonassoc` sirven cuando una misma regla admite dos lecturas, como `expresion - expresion - expresion`. Los tokens de una misma línea comparten nivel; lo declarado más abajo tiene mayor precedencia. `%prec` cambia la precedencia de una sola regla. La guía lo usa para el menos unario: el `-` binario queda por debajo de `*` y `/`, y el unario por encima, mediante un terminal ficticio que el léxico no devuelve.
-
-En RG una constante negativa llega como un único `CTE` (estado 7 del autómata) y no existe la regla `factor: OP_RESTA factor`. La jerarquía de §5 ya asocia `+` y `-` a izquierda y les da menos precedencia que a `*` y `/`. Por eso no se declara precedencia ni `%prec`.
-
 ---
 
 
@@ -154,7 +150,7 @@ Un solo campo: todos los tokens con valor transportan un índice de la tabla de 
 %start programa
 ```
 
-Son 29 tokens. `**READ` no se declara:** fue retirado de la gramática, de modo que `read` se reconoce como identificador común. Registrarlo en la bitácora de `01-diseno` para que la tabla de tokens quede coherente.
+Son 29 tokens. 
 
 `%start` nombra el axioma. Si se omite, Bison toma el no terminal de la primera regla. En RG se declara (S7).
 
@@ -272,14 +268,14 @@ El número de la izquierda es el que Bison asigna en `parser.output` y el que im
 ### 5.1 Notas de traducción
 
 
-| Punto                   | Nota                                                                                                                                        |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `%empty`                | Es la forma en que Bison escribe la producción vacía de `declaraciones`. El comentario `/* vacio */` del documento de diseño no es sintaxis |
-| `main` contra funciones | `funcion_main` usa el terminal `MAIN` y `definicion_funcion` usa `ID`, de modo que no se superponen                                         |
-| `ID` seguido de `(`     | Va a `invocacion`; `ID` seguido de cualquier otra cosa reduce a `factor`. Un símbolo de anticipación alcanza                                |
-| Llaves obligatorias     | Todos los cuerpos son `bloque` con llaves, así que no aparece el problema del `else` colgante                                               |
-| `CADENA`                | Solo aparece en `salida`, nunca como `factor`. Así `"texto" + 1/1` lo rechaza la sintaxis                                                   |
-| Declaraciones           | Solo en `cuerpo`, no en `bloque`: se declaran al inicio de cada función, nunca dentro de un `if` o un `loop`                                |
+| Punto                   | Nota                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `%empty`                | Es la forma en que Bison escribe la producción vacía de `declaraciones`.                                     |
+| `main` contra funciones | `funcion_main` usa el terminal `MAIN` y `definicion_funcion` usa `ID`, de modo que no se superponen          |
+| `ID` seguido de `(`     | Va a `invocacion`; `ID` seguido de cualquier otra cosa reduce a `factor`. Un símbolo de anticipación alcanza |
+| Llaves obligatorias     | Todos los cuerpos son `bloque` con llaves, así que no aparece el problema del `else` colgante                |
+| `CADENA`                | Solo aparece en `salida`, nunca como `factor`. Así `"texto" + 1/1` lo rechaza la sintaxis                    |
+| Declaraciones           | Solo en `cuerpo`, no en `bloque`: se declaran al inicio de cada función, nunca dentro de un `if` o un `loop` |
 
 
 
@@ -298,8 +294,6 @@ Una acción se ejecuta cuando la regla se reconoce. Es código C entre `{` y `}`
 En `A: B C D ;`, `$1` es el valor de `B`, `$2` el de `C` y `$3` el de `D`. Si la regla no asigna `$$`, el valor es el del primer símbolo.
 
 En RG ese valor es `indice_ts` (S5). El contenido de cada acción —qué terceto emite— se especifica en la etapa de código intermedio. Acá las acciones quedan vacías.
-
-**Decisión registrada:** el grupo trabaja con **tercetos** como representación intermedia. El motivo consta en la bitácora de esta etapa.
 
 ---
 
@@ -320,18 +314,7 @@ Una acción en medio de una regla también puede provocar un conflicto. En ese c
 
 Generar siempre el informe y revisarlo antes de dar la etapa por cerrada. `parser.output` lista los estados con sus reglas punteadas. Un conflicto aparece como una celda con dos acciones posibles.
 
-### 6.1 Punto a inspeccionar primero
-
-```
-condicion : PAR_ABRE condiciones PAR_CIERRA
-factor    : PAR_ABRE expresion  PAR_CIERRA
-```
-
-Al leer un `(` dentro de una condición, el parser no sabe todavía si lo que sigue es otra condición o una expresión. Analíticamente se resuelve, porque una condición exige un operador de comparación y una expresión no lo admite, pero es el lugar donde el método LALR puede fusionar estados y reportar conflicto.
-
-**Si aparece**, antes de tocar la gramática verificar que el conflicto sea real y no una advertencia por estados fusionados. Toda modificación a las reglas debe reflejarse primero en `01-diseno` §6 y registrarse en la bitácora.
-
-### 6.2 Criterio
+### 6.1 Criterio
 
 Cero conflictos es el objetivo. Si queda alguno, documentar en la bitácora cuál es, por qué se acepta y cómo lo resuelve Bison por omisión.
 
