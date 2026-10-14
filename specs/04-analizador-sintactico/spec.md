@@ -5,42 +5,65 @@
 
 Integra el analizador léxico con Bison y valida que el programa fuente pertenezca al lenguaje RG.
 
+Bison toma la gramática libre de contexto, en forma LALR, y genera el analizador. El archivo de entrada es `parser.y`.
+
 ---
 
 ## 1. Alcance e interfaz
 
 ### 1.1 Objetivo
 
-Reconocer la estructura del programa fuente aplicando las reglas gramaticales de `01-diseno` §9. El parser pide tokens a `yylex` (spec-etapa-2) y reduce hasta el axioma. Si no llega al axioma, el programa no pertenece al lenguaje.
+Reconocer la estructura del programa fuente aplicando las reglas gramaticales de `01-diseno` §6. El parser pide tokens a `yylex` (spec-etapa-2) y reduce hasta el axioma. Si no llega al axioma, el programa no pertenece al lenguaje.
 
-### 1.2 Entrada
+### 1.2 `main`, `yyparse` y `yylex`
+
+`main` abre el fuente y llama a `yyparse`. `yyparse` pide cada token a `yylex` y comprueba si la secuencia es una construcción válida de la gramática. `yylex` tiene que llamarse así: es el nombre que `yyparse` invoca.
+
+`yylex` devuelve el código del token. Ante fin de archivo devuelve `0`. Si el token es `ID`, `CTE` o `CADENA`, deja en `yylval` el índice de la tabla de símbolos. Las acciones leen ese valor.
+
+| Retorno de `yyparse` | Significado |
+| --- | --- |
+| `0` | El léxico entregó el fin de archivo y el sintáctico aceptó |
+| `1` | Hubo un error. `yyerrok` restablece el analizador a su modo normal |
+
+La estrategia de recuperación queda fuera de esta etapa (§1.4).
+
+### 1.3 Entrada
 
 - Los tokens que entrega `yylex`, uno por llamada, hasta recibir `0`.
 - El valor semántico en `yylval` para `ID`, `CTE` y `CADENA`.
 
-### 1.3 Salida
+### 1.4 Salida
 
 1. **Veredicto**: el programa pertenece o no al lenguaje.
 2. **Errores sintácticos** reportados por `yyerror`, con la línea del fuente.
 3. **Punto de enganche** para las acciones semánticas de etapas posteriores.
 
-### 1.4 Fuera de alcance
+### 1.5 Fuera de alcance
 
 Queda fuera de esta spec, y se especifica en etapas posteriores:
 
 - El contenido de las acciones semánticas: qué emite cada regla, el formato del terceto y sus operadores.
-- Los controles semánticos R1, R2 y R7, y la estrategia de recuperación de errores.
+- La estrategia de recuperación de errores.
 - La traducción a assembler.
+
+Los controles semánticos R1, R2 y R7 también quedan para después. Están definidos en `01-diseno` §11; el error de cada una, en §12:
+
+| Regla | Definición | Error |
+| --- | --- | --- |
+| R1 | Usar un `ID` no declarado es error semántico | E6 |
+| R2 | Declarar dos veces el mismo `ID` es error semántico | E7 |
+| R7 | Llamada recursiva directa: error semántico | E9 |
 
 El reconocimiento de tokens ya está especificado en `specs/03-analizador-lexico/`.
 
-Las acciones semánticas se escriben físicamente dentro de las reglas de §5, pero **su contenido** se define aparte. Esta spec deja el esqueleto; la etapa de código intermedio lo llena.
+Las acciones se escriben físicamente dentro de las reglas de §5, pero **su contenido** se define aparte. Esta spec deja el esqueleto; la etapa de código intermedio lo llena.
 
-### 1.5 Responsabilidades
+### 1.6 Responsabilidades
 
 - Declarar los tokens de forma que Bison genere los códigos que `yylex` retorna.
 - Declarar el valor semántico.
-- Expresar las 25 producciones de `01-diseno` §9 sin alterarlas.
+- Expresar las producciones de `01-diseno` §6 sin alterarlas.
 - Proveer el `main` que invoca `yyparse`.
 - Dejar el parser libre de conflictos, o con los conflictos documentados y justificados.
 
@@ -50,27 +73,38 @@ Las acciones semánticas se escriben físicamente dentro de las reglas de §5, p
 
 | # | Decisión | Valor |
 | --- | --- | --- |
-| S1 | Herramienta | Bison. Consigna general 1 exige integración con YACC |
+| S1 | Herramienta | Bison, en C. La consigna general 1 exige integración con YACC |
 | S2 | Lenguaje de las acciones | C. Consigna general 2 |
 | S3 | Generador de léxico | **Ninguno.** No se usa Flex: `yylex` es manual (spec-etapa-2, Y1) |
-| S4 | Códigos de token | Los asigna Bison. `yylex` traduce con `traducir_token` (spec-etapa-2 §3) |
+| S4 | Códigos de token | Los asigna Bison y los publica como `#define` en `parser.tab.h`. `yylex` traduce con `traducir_token` (spec-etapa-2 §3) |
 | S5 | Valor semántico | `%union` con un entero: índice en la tabla de símbolos (spec-etapa-2, Y4) |
 | S6 | Precedencia y asociatividad | **No se declaran.** Quedan codificadas en la jerarquía `expresion` → `termino` → `factor` |
-| S7 | Axioma | `programa` |
+| S7 | Axioma | `programa`, declarado con `%start` |
 | S8 | Mensajes de error | Modo detallado de Bison, para que `yyerror` reciba qué se esperaba |
 
-**Sobre S6.** Al resolver el signo negativo en el estado 7 del autómata, una constante negativa llega como un único `CTE` y no existe la regla `factor: OP_RESTA factor`. Por eso no hace falta declarar precedencia para el menos unario.
+**Sobre S6.** `%left`, `%right` y `%nonassoc` sirven cuando una misma regla admite dos lecturas, como `expresion - expresion - expresion`. Los tokens de una misma línea comparten nivel; lo declarado más abajo tiene mayor precedencia. `%prec` cambia la precedencia de una sola regla. La guía lo usa para el menos unario: el `-` binario queda por debajo de `*` y `/`, y el unario por encima, mediante un terminal ficticio que el léxico no devuelve.
+
+En RG una constante negativa llega como un único `CTE` (estado 7 del autómata) y no existe la regla `factor: OP_RESTA factor`. La jerarquía de §5 ya asocia `+` y `-` a izquierda y les da menos precedencia que a `*` y `/`. Por eso no se declara precedencia ni `%prec`.
 
 ---
 
-## 3. Estructura del archivo `parser.y`
+## 3. Estructura de `parser.y`
 
-| Sección | Contenido en RG |
-| --- | --- |
-| Declaraciones | `#include` de la tabla de símbolos y del léxico, prototipos de `yylex` y `yyerror`, variables globales |
-| Tokens | `%union`, `%token`, `%start` |
-| Reglas | Las 25 producciones de `01-diseno` §9 |
-| Código auxiliar | `yyerror`, `main`, y las funciones auxiliares que invoquen las acciones semánticas |
+El archivo tiene cuatro secciones. Los delimitadores son los de Bison.
+
+| Sección | Delimitador | Contenido en RG |
+| --- | --- | --- |
+| Declaraciones | `%{` … `%}` | Includes del léxico, prototipos de `yylex` y `yyerror`, variables globales |
+| Tokens | a continuación, antes del primer `%%` | `%union`, `%token`, `%start` |
+| Reglas | entre `%%` y `%%` | Las producciones de `01-diseno` §6 |
+| Código | después del segundo `%%` | `main` y las funciones auxiliares que invoquen las acciones. `yyerror` la provee el léxico |
+
+Convenciones de las reglas:
+
+- Un no terminal se arma con letras, punto, `_` y dígitos, no empieza con dígito, y puede ir en mayúsculas o minúsculas.
+- Un terminal tiene que estar declarado con `%token`. Uno declarado y no usado produce advertencia de Bison.
+- Varias alternativas del mismo lado izquierdo se separan con `|`.
+- Toda regla termina en `;`.
 
 ---
 
@@ -102,13 +136,15 @@ Un solo campo: todos los tokens con valor transportan un índice de la tabla de 
 
 Son 29 tokens. **`READ` no se declara:** fue retirado de la gramática, de modo que `read` se reconoce como identificador común. Registrarlo en la bitácora de `01-diseno` para que la tabla de tokens quede coherente.
 
-Declarar un token que ninguna regla usa produce advertencia de Bison, así que la lista de arriba y la gramática de §5 deben coincidir exactamente.
+`%start` nombra el axioma. Si se omite, Bison toma el no terminal de la primera regla. En RG se declara (S7).
+
+La lista de tokens y la gramática de §5 coinciden exactamente.
 
 ---
 
 ## 5. Gramática
 
-Traducción literal de `01-diseno` §9 a la sintaxis de Bison. **Ninguna regla se modifica, reordena ni corrige.**
+Traducción literal de `01-diseno` §6 a la sintaxis de Bison. **Ninguna regla se modifica, reordena ni corrige.**
 
 ```
 programa            : lista_funciones funcion_main
@@ -218,17 +254,35 @@ op_logico           : AND
 | `CADENA` | Solo aparece en `salida`, nunca como `factor`. Así `"texto" + 1/1` lo rechaza la sintaxis |
 | Declaraciones | Solo en `cuerpo`, no en `bloque`: se declaran al inicio de cada función, nunca dentro de un `if` o un `loop` |
 
+### 5.2 Acciones
+
+Una acción se ejecuta cuando la regla se reconoce. Es código C entre `{` y `}`, y la regla sigue cerrando con `;`.
+
+| Pseudovariable | Qué es |
+| --- | --- |
+| `$1`, `$2`, `$3`, … | Valor del 1.º, 2.º, 3.º… símbolo del lado derecho, ya leído |
+| `$$` | Valor que devuelve el lado izquierdo |
+
+En `A: B C D ;`, `$1` es el valor de `B`, `$2` el de `C` y `$3` el de `D`. Si la regla no asigna `$$`, el valor es el del primer símbolo.
+
+En RG ese valor es `indice_ts` (S5). El contenido de cada acción —qué terceto emite— se especifica en la etapa de código intermedio. Acá las acciones quedan vacías.
+
+**Decisión registrada:** el grupo trabaja con **tercetos** como representación intermedia. El motivo consta en la bitácora de esta etapa.
+
 ---
 
-## 6. Conflictos: qué revisar
+## 6. Conflictos
 
-Generar siempre el informe y revisarlo antes de dar la etapa por cerrada:
+Una gramática es ambigua si alguna cadena puede estructurarse de dos o más formas. Bison lo detecta al generar el parser e informa la cantidad de conflictos. Igual produce el analizador, eligiendo un paso:
 
-```
-bison -d --report=all -Wcounterexamples parser.y
-```
+| Conflicto | Elección por defecto |
+| --- | --- |
+| Shift/reduce | Shift |
+| Reduce/reduce | La regla que aparece antes en la gramática |
 
-El archivo `parser.output` lista los estados con sus reglas punteadas. Un conflicto aparece como una celda con dos acciones posibles, igual que en el ejemplo de construcción manual de la tabla que entregó la cátedra.
+Una acción en medio de una regla también puede provocar un conflicto. En ese caso, resolverlo con precedencia produce un analizador incorrecto: hay que revisar la regla.
+
+Generar siempre el informe y revisarlo antes de dar la etapa por cerrada. `parser.output` lista los estados con sus reglas punteadas. Un conflicto aparece como una celda con dos acciones posibles.
 
 ### 6.1 Punto a inspeccionar primero
 
@@ -239,7 +293,7 @@ factor    : PAR_ABRE expresion  PAR_CIERRA
 
 Al leer un `(` dentro de una condición, el parser no sabe todavía si lo que sigue es otra condición o una expresión. Analíticamente se resuelve, porque una condición exige un operador de comparación y una expresión no lo admite, pero es el lugar donde el método LALR puede fusionar estados y reportar conflicto.
 
-**Si aparece**, antes de tocar la gramática verificar que el conflicto sea real y no una advertencia por estados fusionados. Toda modificación a las reglas debe reflejarse primero en `01-diseno` §9 y registrarse en la bitácora: las especificaciones son la fuente de la verdad.
+**Si aparece**, antes de tocar la gramática verificar que el conflicto sea real y no una advertencia por estados fusionados. Toda modificación a las reglas debe reflejarse primero en `01-diseno` §6 y registrarse en la bitácora.
 
 ### 6.2 Criterio
 
@@ -261,7 +315,7 @@ main:
     exportar tabla de símbolos        /* consigna general 9 */
 ```
 
-El `main` deja de recorrer el archivo: esa responsabilidad pasó a `yyparse`. La apertura del fuente ocurre acá, antes de la primera llamada a `yylex`.
+`main` abre el fuente una vez, llama a `yyparse` una vez y cierra. `yyparse` es quien recorre la entrada, pidiendo tokens a `yylex`. `yylex` no se define en `parser.y`: está en `src/lexico/lexico.c`.
 
 `yyerror` la provee el léxico (spec-etapa-2 §9.2) e informa **E5** con la línea.
 
@@ -276,11 +330,17 @@ src/lexico/lexico.h        prototipos
 ```
 
 ```
-bison -d --report=all src/parser/parser.y
-gcc parser.tab.c src/lexico/lexico.c -o compilador
+win_bison -d --report=all -o src/parser/parser.tab.c src/parser/parser.y
+gcc src/parser/parser.tab.c src/lexico/lexico.c -o compilador.exe
 ```
 
-`lexico.c` incluye `parser.tab.h` para conocer los códigos de token. La dependencia es en un solo sentido.
+| Salida | Contenido |
+| --- | --- |
+| `parser.tab.c` | El parser generado |
+| `parser.tab.h` | Los `#define` de los tokens (`-d`) |
+| `parser.output` | Estados LALR y conflictos (`--report=all`) |
+
+`lexico.c` incluye `parser.tab.h`. La dependencia es en un solo sentido: el léxico conoce los códigos del parser.
 
 **No enlazar Flex.** Generaría su propio `yylex` y pisaría el del grupo (S3).
 
@@ -316,7 +376,7 @@ Toda producción de §5 debe quedar ejercitada por al menos un caso. Si alguna n
 ## 10. Criterios de aceptación
 
 - `bison -d` genera el parser sin conflictos, o con los conflictos documentados en la bitácora.
-- La gramática del `parser.y` coincide producción por producción con `01-diseno` §9.
+- La gramática del `parser.y` coincide producción por producción con `01-diseno` §6.
 - Los 29 tokens declarados coinciden con los que retorna `traducir_token`; ninguno queda sin usar.
 - Los seis programas correctos parsean completos.
 - Los programas con error sintáctico se rechazan informando la línea.
@@ -330,8 +390,7 @@ Toda producción de §5 debe quedar ejercitada por al menos un caso. Si alguna n
 | Tema | Dónde |
 | --- | --- |
 | Contrato de `yylex` y `yylval` | `specs/03-analizador-lexico/spec-etapa-2.md` §3 y §4 |
-| Gramática original | `specs/01-diseno/spec.md` §9 |
+| Gramática original | `specs/01-diseno/spec.md` §6 |
 | Catálogo de errores | `specs/01-diseno/spec.md` §12 |
+| R1, R2 y R7 | `specs/01-diseno/spec.md` §11 |
 | Contrato de la tabla de símbolos | `specs/02-tabla-simbolos/spec.md` |
-
-**Decisión registrada:** el grupo trabaja con **tercetos** como representación intermedia. El motivo consta en la bitácora de esta etapa. Acá solo se deja constancia de que las acciones de §5 van a emitirlos; el formato y los operadores se especifican más adelante.

@@ -34,3 +34,5 @@ Cada carpeta de etapa contiene:
 - `spec.md` — qué se va a construir y bajo qué reglas (contrato de la etapa)
 - `bitacora.md` — registro cronológico de decisiones, problemas y cambios
 
+Cómo se trabaja sobre estas specs: `00-trabajo/spec.md`.
+

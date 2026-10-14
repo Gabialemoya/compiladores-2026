@@ -62,7 +62,7 @@ El autómata no cambia. Cambia quién lo invoca.
 | Y5 | Error léxico | `continue`, nunca `return`. El parser no recibe códigos de error |
 | Y6 | Unread ante error | Se agrega: el carácter que provoca el error vuelve al flujo (§8) |
 | Y7 | Normalización de racionales | En `fin_cte`, antes del alta en TS (§6) |
-| Y8 | Cadenas | Sin cambios: solo letras, según L4 y §10 de la etapa 1 |
+| Y8 | Cadenas | Sin cambios: solo letras, según E4 de §10 de la etapa 1 |
 | Y9 | Errores derivados | Se informan ambos: el léxico y el sintáctico que provoca (§13, a consultar con la cátedra) |
 
 ---
