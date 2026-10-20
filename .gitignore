@@ -53,3 +53,12 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# Generados por Bison
+*.tab.c
+*.tab.h
+*.output
+
+# Executables without extension
+compilador
+lexico

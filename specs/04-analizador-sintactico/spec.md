@@ -94,6 +94,7 @@ Las acciones se escriben físicamente dentro de las reglas de §5, pero **su con
 | S8  | Mensajes de error           | Modo detallado de Bison, para que `yyerror` reciba qué se esperaba                                                      |
 
 
+**Sobre S8 (Observación).** Se utiliza `%error-verbose` por compatibilidad con Bison 2.4.1. Esta forma antigua está deprecada en Bison 3.x y genera una advertencia al generar el parser con una versión moderna (en cuyo caso se debe utilizar `%define parse.error verbose`).
 ---
 
 
@@ -345,6 +346,8 @@ main:
 
 
 ## 8. Estructura y compilación
+
+**Versión de Bison:** GNU Bison 2.4.1
 
 ```
 src/parser/parser.y        gramática, tokens, acciones y main
