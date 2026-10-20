@@ -2,10 +2,12 @@
 
 ## Integrantes
 
+
 | Nombre        | Legajo |
 | ------------- | ------ |
-| Gabriela Moya | 5372      |
-| Rocio Pepek   | 5340      |
+| Gabriela Moya | 5372   |
+| Rocio Pepek   | 5340   |
+
 
 ## TP asignado
 
@@ -121,20 +123,53 @@ Además de la batería obligatoria indicada en las Consignas Generales, deben en
 
 </details>
 
+
+
 ## Lenguaje
 
 - **Lenguaje fuente:** RG
 - **Lenguaje de implementación:** C
 - **Analizador léxico:** manual (etapa 1: listado de tokens; etapa 2: `yylex`), tablas según `specs/01-diseno` y `specs/03-analizador-lexico`
-- **Analizador sintáctico:** YACC/Bison (entrega 2)
+- **Analizador sintáctico:** Bison 
 - **Arquitectura destino:** —
 
-## Cómo compilar
+
+
+## Analizador Léxico (Etapa 1 -  listado de tokens)
+
+### Cómo compilar
+
+Desde la raíz del repositorio:
 
 ```
+gcc src/analizador-lexico-etapa-1.c -o lexico-etapa-1.exe
 ```
 
-## Cómo ejecutar
+### Cómo ejecutar
 
 ```
+.\lexico-etapa-1.exe tests\correctos\p1_suma.rg
 ```
+
+El argumento es la ruta de un fuente `.rg`. El listado de tokens se imprime en pantalla y se guarda en `out/tokens.txt`. Si no hubo errores léxicos, la tabla de símbolos queda en `out/ts.txt`. La carpeta `out/` tiene que existir.
+
+
+
+## Analizador sintáctico
+
+### Cómo compilar
+
+Desde la raíz del repositorio:
+
+```
+win_bison -d --report=all -o src/parser/parser.tab.c src/parser/parser.y
+gcc src/parser/parser.tab.c src/lexico/lexico.c -o compilador.exe
+```
+
+### Cómo ejecutar
+
+```
+.\compilador.exe tests\correctos\p1_suma.rg
+```
+
+El argumento es la ruta de un fuente `.rg`. El veredicto se imprime en pantalla. El listado de tokens queda en `out/tokens.txt` y la tabla de símbolos en `out/ts.txt`. Si `out/` no existe, el programa la crea.
