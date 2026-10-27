@@ -16,6 +16,9 @@ typedef struct {
 /* Los abre el main del parser, antes de yyparse. */
 extern FILE *fuente;
 extern int linea_actual;
+/* Línea del token anterior al lookahead. La acción corre con el
+   lookahead ya leído, y para entonces linea_actual es la de ese token. */
+extern int linea_anterior;
 extern int hay_errores;
 
 extern Simbolo ts[MAX_TS];

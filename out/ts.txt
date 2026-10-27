@@ -1,3 +1,10 @@
 NOMBRE | TIPO | VALOR | LONGITUD
-a | racional |  | 1
+g | racional |  | 1
+y | racional |  | 1
+@ret_g | racional |  | 6
+f | racional |  | 1
+@tmp0 | racional |  | 5
+x | racional |  | 1
+@ret_f | racional |  | 6
 1/2 | racional | 1/2 | 3
+@tmp1 | racional |  | 5

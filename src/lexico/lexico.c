@@ -62,7 +62,16 @@ enum {
 
 FILE *fuente = NULL;
 int linea_actual = 1;
+int linea_anterior = 0;
 int hay_errores = 0;
+
+static int linea_token = 0;
+
+static int entregar(int token) {
+    linea_anterior = linea_token;
+    linea_token = linea_actual;
+    return token;
+}
 
 Simbolo ts[MAX_TS];
 int ts_size = 0;
@@ -467,7 +476,7 @@ int yylex(void) {
         if (c == EOF) {
             if (estado == 0 || estado == 10) {
                 cerrar_listado();
-                return 0;
+                return entregar(0);
             }
             columna = COL_SPACE;
             char_actual = ' ';
@@ -509,7 +518,7 @@ int yylex(void) {
             }
 
             agregar_listado(token_actual);
-            return traducir_token(token_actual);
+            return entregar(traducir_token(token_actual));
         }
 
         estado = nuevo;

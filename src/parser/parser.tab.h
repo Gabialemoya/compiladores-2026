@@ -44,6 +44,12 @@
 #if YYDEBUG
 extern int yydebug;
 #endif
+/* "%code requires" blocks.  */
+#line 156 "src/parser/parser.y"
+
+    #include "../intermedio/tercetos.h"
+
+#line 53 "src/parser/parser.tab.h"
 
 /* Token kinds.  */
 #ifndef YYTOKENTYPE
@@ -91,11 +97,13 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 10 "src/parser/parser.y"
+#line 160 "src/parser/parser.y"
 
-    int indice_ts;
+    int        indice_ts;   /* lo carga yylex para ID, CTE, CADENA */
+    Referencia ref;         /* lo propagan las reglas              */
+    int        operador;    /* op_comparacion y op_logico          */
 
-#line 99 "src/parser/parser.tab.h"
+#line 107 "src/parser/parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

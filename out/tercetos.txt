@@ -1,0 +1,12 @@
+#     OPERADOR      OP1                  OP2                  TIPO       LINEA
+0     ASIG          TS:x                 TS:y                 -          2
+1     CALL          DIR:5                -                    -          2
+2     ASIG          TS:@tmp0             TS:@ret_f            -          2
+3     ASIG          TS:@ret_g            TS:@tmp0             -          2
+4     RET           -                    -                    -          2
+5     ASIG          TS:@ret_f            TS:x                 -          5
+6     RET           -                    -                    -          5
+7     ASIG          TS:y                 TS:1/2               -          8
+8     CALL          DIR:0                -                    -          8
+9     ASIG          TS:@tmp1             TS:@ret_g            -          8
+10    WRITE         TS:@tmp1             -                    -          8
