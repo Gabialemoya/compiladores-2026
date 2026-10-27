@@ -1,0 +1,13 @@
+#     OPERADOR      OP1                  OP2                  TIPO       LINEA
+0     BI            DIR:4                -                    -          1
+1     MUL           TS:x                 TS:x                 RACIONAL   2
+2     ASIG          TS:cuadrado          TER:1                -          2
+3     RET           -                    -                    -          2
+4     ASIG          TS:x                 TS:3/2               -          7
+5     CALL          DIR:1                -                    -          7
+6     ASIG          TS:r                 TS:cuadrado          -          7
+7     WRITE         TS:r                 -                    -          8
+8     ASIG          TS:x                 TS:2/3               -          9
+9     CALL          DIR:1                -                    -          9
+10    SUMA          TS:cuadrado          TS:1/9               RACIONAL   9
+11    WRITE         TER:10               -                    -          9
