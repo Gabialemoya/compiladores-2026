@@ -45,11 +45,19 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 156 "src/parser/parser.y"
+#line 159 "src/parser/parser.y"
 
     #include "../intermedio/tercetos.h"
 
-#line 53 "src/parser/parser.tab.h"
+    /* Saltos pendientes de una condicion. Cada lista es el indice de su
+       primer salto, o -1 si esta vacia. */
+    typedef struct {
+        int verdadero;  /* T_BI que van al bloque del if               */
+        int falso;      /* T_BF que van al else o a lo que sigue al if */
+        int fin;        /* terceto que sigue a la condicion            */
+    } Condicion;
+
+#line 61 "src/parser/parser.tab.h"
 
 /* Token kinds.  */
 #ifndef YYTOKENTYPE
@@ -97,13 +105,15 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 160 "src/parser/parser.y"
+#line 171 "src/parser/parser.y"
 
     int        indice_ts;   /* lo carga yylex para ID, CTE, CADENA */
     Referencia ref;         /* lo propagan las reglas              */
     int        operador;    /* op_comparacion y op_logico          */
+    Condicion  cond;        /* condicion y condiciones             */
+    int        salto;       /* BI del else, pendiente              */
 
-#line 107 "src/parser/parser.tab.h"
+#line 117 "src/parser/parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

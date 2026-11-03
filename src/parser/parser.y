@@ -8,6 +8,9 @@
 /* Nombre de la función cuyo cuerpo se está traduciendo. */
 static const char *funcion_actual = "main";
 
+/* Indice del terceto BI inicial, que salta al arranque de main. */
+static int salto_main = -1;
+
 #define MAX_FUNCIONES 64
 #define MAX_PENDIENTES 256
 
@@ -155,12 +158,22 @@ static Referencia emitir_llamada(int nombre, Referencia argumento) {
 
 %code requires {
     #include "../intermedio/tercetos.h"
+
+    /* Saltos pendientes de una condicion. Cada lista es el indice de su
+       primer salto, o -1 si esta vacia. */
+    typedef struct {
+        int verdadero;  /* T_BI que van al bloque del if               */
+        int falso;      /* T_BF que van al else o a lo que sigue al if */
+        int fin;        /* terceto que sigue a la condicion            */
+    } Condicion;
 }
 
 %union {
     int        indice_ts;   /* lo carga yylex para ID, CTE, CADENA */
     Referencia ref;         /* lo propagan las reglas              */
     int        operador;    /* op_comparacion y op_logico          */
+    Condicion  cond;        /* condicion y condiciones             */
+    int        salto;       /* BI del else, pendiente              */
 }
 
 %token <indice_ts> ID CTE CADENA
@@ -172,6 +185,88 @@ static Referencia emitir_llamada(int nombre, Referencia argumento) {
 %token IF ELSE VAR LOOP UNTIL OR AND WRITE MAIN RETURN
 
 %type <ref> expresion termino factor invocacion
+%type <operador> op_comparacion op_logico
+%type <cond> condiciones condicion
+
+%code {
+/* Encadena las listas de saltos pendientes: siguiente[i] es el salto que
+   sigue a i en su lista, o -1. */
+static int siguiente[MAX_TERCETOS];
+
+static int lista_nueva(int salto) {
+    if (salto < 0)
+        return -1;
+    siguiente[salto] = -1;
+    return salto;
+}
+
+static int lista_unir(int a, int b) {
+    int i;
+
+    if (a < 0)
+        return b;
+    if (b < 0)
+        return a;
+    i = a;
+    while (siguiente[i] >= 0)
+        i = siguiente[i];
+    siguiente[i] = b;
+    return a;
+}
+
+/* En T_BF el destino va en op2; en T_BI, en op1. */
+static void lista_completar(int lista, int destino) {
+    int i;
+
+    for (i = lista; i >= 0; i = siguiente[i]) {
+        if (tercetos[i].operador == T_BF)
+            completar_op2(i, destino);
+        else
+            completar_op1(i, destino);
+    }
+}
+
+/* Comparacion y T_BF sobre ella, con destino pendiente. */
+static Condicion condicion_simple(int operador, Referencia izq, Referencia der) {
+    Condicion c;
+    int comparacion;
+
+    comparacion = emitir((OperadorTerceto)operador, izq, der, TIPO_ENTERO);
+    c.verdadero = -1;
+    c.falso = lista_nueva(emitir(T_BF, ref_ter(comparacion), ref_vacia(), TIPO_NINGUNO));
+    c.fin = proximo();
+    return c;
+}
+
+/* Entre el operador logico y la segunda condicion. */
+static Condicion abrir_logico(Condicion izq, int op_logico) {
+    Condicion c;
+
+    if (op_logico == AND) {
+        /* Si la izquierda se cumple, se evalua la derecha. */
+        lista_completar(izq.verdadero, proximo());
+        c.verdadero = -1;
+        c.falso = izq.falso;
+    } else {
+        /* Si la izquierda se cumple, salta al bloque; si no, evalua la derecha. */
+        c.verdadero = lista_unir(izq.verdadero,
+            lista_nueva(emitir(T_BI, ref_vacia(), ref_vacia(), TIPO_NINGUNO)));
+        lista_completar(izq.falso, proximo());
+        c.falso = -1;
+    }
+    c.fin = proximo();
+    return c;
+}
+
+static Condicion cerrar_logico(Condicion izq, Condicion der) {
+    Condicion c;
+
+    c.verdadero = lista_unir(izq.verdadero, der.verdadero);
+    c.falso = lista_unir(izq.falso, der.falso);
+    c.fin = proximo();
+    return c;
+}
+}
 
 %start programa
 
@@ -191,7 +286,10 @@ definicion_funcion  : ID PAR_ABRE ID PAR_CIERRA
                     ;
 
 funcion_main        : MAIN PAR_ABRE PAR_CIERRA
-                        { funcion_actual = "main"; }
+                        {
+                            funcion_actual = "main";
+                            completar_op1(salto_main, proximo());
+                        }
                       cuerpo
                     ;
 
@@ -236,7 +334,18 @@ salida              : WRITE PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA
                     ;
 
 seleccion           : IF PAR_ABRE condiciones PAR_CIERRA bloque
-                    | IF PAR_ABRE condiciones PAR_CIERRA bloque ELSE bloque
+                        {
+                            lista_completar($3.verdadero, $3.fin);
+                            lista_completar($3.falso, proximo());
+                        }
+                    | IF PAR_ABRE condiciones PAR_CIERRA bloque ELSE
+                        {
+                            lista_completar($3.verdadero, $3.fin);
+                            $<salto>$ = emitir(T_BI, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
+                            lista_completar($3.falso, proximo());
+                        }
+                      bloque
+                        { completar_op1($<salto>7, proximo()); }
                     ;
 
 iteracion           : LOOP bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA
@@ -245,12 +354,18 @@ iteracion           : LOOP bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_
 bloque              : LLAVE_ABRE lista_sentencias LLAVE_CIERRA
                     ;
 
-condiciones         : condiciones op_logico condicion
+condiciones         : condiciones op_logico
+                        { $<cond>$ = abrir_logico($1, $2); }
+                      condicion
+                        { $$ = cerrar_logico($<cond>3, $4); }
                     | condicion
+                        { $$ = $1; }
                     ;
 
 condicion           : expresion op_comparacion expresion
+                        { $$ = condicion_simple($2, $1, $3); }
                     | PAR_ABRE condiciones PAR_CIERRA
+                        { $$ = $2; }
                     ;
 
 expresion           : expresion OP_SUMA termino
@@ -282,15 +397,23 @@ invocacion          : ID PAR_ABRE expresion PAR_CIERRA
                     ;
 
 op_comparacion      : OP_MENOR
+                        { $$ = T_MENOR; }
                     | OP_MENOR_IGUAL
+                        { $$ = T_MENOR_IGUAL; }
                     | OP_MAYOR
+                        { $$ = T_MAYOR; }
                     | OP_MAYOR_IGUAL
+                        { $$ = T_MAYOR_IGUAL; }
                     | OP_IGUAL
+                        { $$ = T_IGUAL; }
                     | OP_DISTINTO
+                        { $$ = T_DISTINTO; }
                     ;
 
 op_logico           : AND
+                        { $$ = AND; }
                     | OR
+                        { $$ = OR; }
                     ;
 
 %%
@@ -308,6 +431,7 @@ int main(int argc, char **argv) {
     }
 
     yydebug = 1;
+    salto_main = emitir(T_BI, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
     yyparse();
     fclose(fuente);
 

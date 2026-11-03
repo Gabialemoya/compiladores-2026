@@ -28,9 +28,9 @@ La etapa se construye en pasos. Cada uno se implementa, se prueba y se registra 
 | 2 | Acciones de expresiones y asignación | **hecho** |
 | 3 | Acciones de `write` y `return` | **hecho** |
 | 4 | Acciones de invocación de funciones | **hecho** |
-| 5 | Acciones de `if` y `if … else` | pendiente |
+| 5 | Acciones de `if` y `if … else`, con condiciones compuestas con `and` y `or` | **hecho** |
 | 6 | Acciones de `loop … until` | pendiente |
-| 7 | Condiciones compuestas con `and` y `or` | pendiente |
+| 7 | Condiciones compuestas con `and` y `or` | unido al paso 5 |
 | 8 | Revisión del archivo completo contra los programas de prueba | pendiente |
 
 Las secciones 3 a 6 corresponden al **paso 1**. Las acciones por regla se agregan a partir del paso 2.
@@ -172,7 +172,7 @@ El bloque `%code requires` es necesario: sin él, el tipo `Referencia` no se cop
 
 **En el paso 1 no se declaran los `%type`.** Declararlos sin escribir las acciones haría que Bison aplique su acción por defecto `$$ = $1` entre campos de tipos distintos, y eso no compila. Los `%type` entran en el paso 2, junto con las acciones.
 
-`yylex` no cambia: sigue cargando solo `indice_ts`.
+`yylex` no cambia: sigue cargando solo `indice_ts`. El paso 5 suma dos campos, `cond` y `salto` (§13.1).
 
 ---
 
@@ -297,3 +297,252 @@ La entrada es el índice que va a tener el primer terceto del cuerpo. Se anota a
 - En `p5_funcion`, `r = cuadrado(3/2)` queda como `ASIG` de `3/2` en `x`, `CALL` a `DIR:0`, copia de `@ret_cuadrado` a `@tmp0` y `ASIG` de ese temporal en `r`. Los cuatro en la línea 7.
 - `write(cuadrado(2/3) + 1/9)` suma `@tmp1` con `1/9`.
 - No aparecen saltos ni comparaciones.
+
+
+---
+
+## 13. Acciones del paso 5
+
+Este paso incluye el 7: `if`, `if … else` y las condiciones con `and` y `or` van juntos, porque los dos programas de prueba con `if` (`p4_if_else` y `p7_condiciones`) usan condiciones compuestas.
+
+### 13.1 Valor semántico
+
+```
+%code requires {
+    #include "../intermedio/tercetos.h"
+
+    typedef struct {
+        int verdadero;
+        int falso;
+        int fin;
+    } Condicion;
+}
+
+%union {
+    int        indice_ts;
+    Referencia ref;
+    int        operador;
+    Condicion  cond;    /* condicion y condiciones          */
+    int        salto;   /* BI del else, pendiente           */
+}
+
+%type <operador> op_comparacion op_logico
+%type <cond>     condiciones condicion
+```
+
+`op_comparacion` devuelve el operador de terceto (`T_MENOR`, `T_MAYOR`, …). `op_logico` devuelve el código de token, `AND` u `OR`: no hay operador de terceto para ellos, porque `and` y `or` no anotan una operación sino saltos.
+
+`Condicion` va en `%code requires` por el mismo motivo que `Referencia` (§6.3): el `%union` lo usa y `parser.tab.h` lo tiene que conocer.
+
+### 13.2 Saltos pendientes
+
+Una condición se traduce antes que el bloque, así que no sabe adónde salta. Devuelve los saltos que dejó sin destino, en dos listas (CI5):
+
+| Campo | Contiene | Destino final |
+| --- | --- | --- |
+| `falso` | Los `T_BF` que saltan cuando la condición no se cumple | El `else`, o lo que sigue al `if` |
+| `verdadero` | Los `T_BI` que saltan cuando se cumple, sin evaluar el resto | El primer terceto del bloque del `if` |
+| `fin` | Índice del terceto que sigue a la condición | — |
+
+`verdadero` solo la llenan los `or`. Una condición sin `or` llega al bloque por caída, sin saltar.
+
+Las listas se encadenan en `parser.y` con un arreglo `siguiente[MAX_TERCETOS]`: cada lista es el índice de su primer salto, `-1` si está vacía. Completar una lista rellena `op2` en cada `T_BF` y `op1` en cada `T_BI` (§6.2).
+
+### 13.3 Reglas
+
+| Regla | Qué emite | Qué devuelve |
+| --- | --- | --- |
+| `condicion : expresion op_comparacion expresion` | La comparación, `TIPO_ENTERO`, y un `T_BF` sobre ella con destino pendiente | `falso` con ese `T_BF`, `verdadero` vacía |
+| `condicion : ( condiciones )` | nada | la condición de adentro |
+| `condiciones : condicion` | nada | la condición |
+| `condiciones op_logico` … (acción intermedia), `and` | nada. Completa `verdadero` de la izquierda con `proximo()` | `falso` de la izquierda, `verdadero` vacía |
+| `condiciones op_logico` … (acción intermedia), `or` | Un `T_BI` pendiente. Después completa `falso` de la izquierda con `proximo()` | `verdadero` de la izquierda más ese `T_BI`, `falso` vacía |
+| `condiciones op_logico condicion` | nada | las dos listas unidas con las de la derecha |
+| `if ( c ) bloque` | nada | completa `verdadero` con `c.fin` y `falso` con `proximo()` |
+| `if ( c ) bloque else` … (acción intermedia) | Un `T_BI` pendiente, para saltar el `else` | completa `verdadero` con `c.fin` y `falso` con `proximo()` |
+| `if ( c ) bloque else bloque` | nada | completa el `T_BI` con `proximo()` |
+| `op_comparacion` | nada | `T_MENOR`, `T_MENOR_IGUAL`, `T_MAYOR`, `T_MAYOR_IGUAL`, `T_IGUAL` o `T_DISTINTO` |
+| `op_logico` | nada | `AND` u `OR` |
+
+En un `and`, si la izquierda se cumple se evalúa la derecha, que empieza en `proximo()`; si no se cumple, toda la condición es falsa. En un `or`, si la izquierda se cumple toda la condición es verdadera: el `T_BI` salta al bloque. Si no se cumple, se evalúa la derecha, que empieza después de ese `T_BI`.
+
+Si el `if` es la última sentencia, el destino es `cant_tercetos`, un índice sin terceto: el fin del programa.
+
+### 13.4 Dónde van las acciones
+
+- **No hay acción intermedia después de `)` en el `if`.** Las dos alternativas de `seleccion` empiezan con `IF ( condiciones ) bloque`. Dos acciones intermedias en el mismo lugar son dos no terminales vacíos distintos, y Bison no puede elegir cuál reducir: conflicto reducción/reducción. Por eso la condición trae `fin`, y la lista `verdadero` se completa al reducir el `if`.
+- **La acción del `else` va después de `ELSE`.** Ahí solo queda una alternativa, así que no hay conflicto. El `T_BI` tiene que emitirse antes del bloque del `else`.
+- **La acción de `and` y `or` va entre `op_logico` y `condicion`.** El `T_BI` del `or` tiene que quedar antes de la segunda comparación, y los destinos que apuntan a la segunda condición se conocen recién ahí.
+
+Las tres son acciones intermedias: no cambian las producciones de `04-analizador-sintactico` §5.
+
+`loop … until` usa `condiciones` pero todavía no tiene acciones: en `p3` y `p6` el `T_BF` del `until` queda con destino `-` hasta el paso 6.
+
+### 13.5 Criterios de aceptación
+
+- Bison genera el parser sin conflictos ni warnings. Compila sin warnings con `-Wall -Wextra`.
+- Los 8 programas de `tests/correctos/` siguen en compilación exitosa.
+- Los programas con error informan lo mismo que antes.
+- Ningún `T_BF` ni `T_BI` de un `if` queda con destino `-`.
+- `p7_condiciones` (`and`, `if` sin `else`):
+
+```
+#     OPERADOR      OP1                  OP2                  TIPO       LINEA
+0     BI            DIR:1                -                    -          1
+1     ASIG          TS:s                 TS:0/1               -          4
+2     ASIG          TS:n                 TS:1/1               -          5
+3     MAYOR         TS:n                 TS:40/1              ENTERO     6
+4     BF            TER:3                DIR:8                -          6
+5     DISTINTO      TS:s                 TS:n                 ENTERO     6
+6     BF            TER:5                DIR:8                -          6
+7     WRITE         TS:s                 -                    -          7
+```
+
+- `p4_if_else` (`and` y `or`, los dos con `else`):
+
+```
+#     OPERADOR      OP1                  OP2                  TIPO       LINEA
+0     BI            DIR:1                -                    -          1
+1     ASIG          TS:a                 TS:3/4               -          5
+2     ASIG          TS:b                 TS:1/2               -          6
+3     MAYOR         TS:a                 TS:b                 ENTERO     7
+4     BF            TER:3                DIR:9                -          7
+5     DISTINTO      TS:a                 TS:1/1               ENTERO     7
+6     BF            TER:5                DIR:9                -          7
+7     ASIG          TS:r                 TS:1/1               -          8
+8     BI            DIR:10               -                    -          9
+9     ASIG          TS:r                 TS:0/1               -          10
+10    MENOR         TS:a                 TS:0/1               ENTERO     12
+11    BF            TER:10               DIR:13               -          12
+12    BI            DIR:15               -                    -          12
+13    MENOR_IGUAL   TS:b                 TS:1/2               ENTERO     12
+14    BF            TER:13               DIR:17               -          12
+15    WRITE         TS:r                 -                    -          13
+16    BI            DIR:18               -                    -          14
+17    WRITE         TS:0/1               -                    -          15
+```
+
+
+
+---
+
+## 13. Acciones del paso 5
+
+Este paso incluye el 7: `if`, `if … else` y las condiciones con `and` y `or` van juntos, porque los dos programas de prueba con `if` (`p4_if_else` y `p7_condiciones`) usan condiciones compuestas.
+
+### 13.1 Valor semántico
+
+```
+%code requires {
+    #include "../intermedio/tercetos.h"
+
+    typedef struct {
+        int verdadero;
+        int falso;
+        int fin;
+    } Condicion;
+}
+
+%union {
+    int        indice_ts;
+    Referencia ref;
+    int        operador;
+    Condicion  cond;    /* condicion y condiciones          */
+    int        salto;   /* BI del else, pendiente           */
+}
+
+%type <operador> op_comparacion op_logico
+%type <cond>     condiciones condicion
+```
+
+`op_comparacion` devuelve el operador de terceto (`T_MENOR`, `T_MAYOR`, …). `op_logico` devuelve el código de token, `AND` u `OR`: no hay operador de terceto para ellos, porque `and` y `or` no anotan una operación sino saltos.
+
+`Condicion` va en `%code requires` por el mismo motivo que `Referencia` (§6.3): el `%union` lo usa y `parser.tab.h` lo tiene que conocer.
+
+### 13.2 Saltos pendientes
+
+Una condición se traduce antes que el bloque, así que no sabe adónde salta. Devuelve los saltos que dejó sin destino, en dos listas (CI5):
+
+| Campo | Contiene | Destino final |
+| --- | --- | --- |
+| `falso` | Los `T_BF` que saltan cuando la condición no se cumple | El `else`, o lo que sigue al `if` |
+| `verdadero` | Los `T_BI` que saltan cuando se cumple, sin evaluar el resto | El primer terceto del bloque del `if` |
+| `fin` | Índice del terceto que sigue a la condición | — |
+
+`verdadero` solo la llenan los `or`. Una condición sin `or` llega al bloque por caída, sin saltar.
+
+Las listas se encadenan en `parser.y` con un arreglo `siguiente[MAX_TERCETOS]`: cada lista es el índice de su primer salto, `-1` si está vacía. Completar una lista rellena `op2` en cada `T_BF` y `op1` en cada `T_BI` (§6.2).
+
+### 13.3 Reglas
+
+| Regla | Qué emite | Qué devuelve |
+| --- | --- | --- |
+| `condicion : expresion op_comparacion expresion` | La comparación, `TIPO_ENTERO`, y un `T_BF` sobre ella con destino pendiente | `falso` con ese `T_BF`, `verdadero` vacía |
+| `condicion : ( condiciones )` | nada | la condición de adentro |
+| `condiciones : condicion` | nada | la condición |
+| `condiciones op_logico` … (acción intermedia), `and` | nada. Completa `verdadero` de la izquierda con `proximo()` | `falso` de la izquierda, `verdadero` vacía |
+| `condiciones op_logico` … (acción intermedia), `or` | Un `T_BI` pendiente. Después completa `falso` de la izquierda con `proximo()` | `verdadero` de la izquierda más ese `T_BI`, `falso` vacía |
+| `condiciones op_logico condicion` | nada | las dos listas unidas con las de la derecha |
+| `if ( c ) bloque` | nada | completa `verdadero` con `c.fin` y `falso` con `proximo()` |
+| `if ( c ) bloque else` … (acción intermedia) | Un `T_BI` pendiente, para saltar el `else` | completa `verdadero` con `c.fin` y `falso` con `proximo()` |
+| `if ( c ) bloque else bloque` | nada | completa el `T_BI` con `proximo()` |
+| `op_comparacion` | nada | `T_MENOR`, `T_MENOR_IGUAL`, `T_MAYOR`, `T_MAYOR_IGUAL`, `T_IGUAL` o `T_DISTINTO` |
+| `op_logico` | nada | `AND` u `OR` |
+
+En un `and`, si la izquierda se cumple se evalúa la derecha, que empieza en `proximo()`; si no se cumple, toda la condición es falsa. En un `or`, si la izquierda se cumple toda la condición es verdadera: el `T_BI` salta al bloque. Si no se cumple, se evalúa la derecha, que empieza después de ese `T_BI`.
+
+Si el `if` es la última sentencia, el destino es `cant_tercetos`, un índice sin terceto: el fin del programa.
+
+### 13.4 Dónde van las acciones
+
+- **No hay acción intermedia después de `)` en el `if`.** Las dos alternativas de `seleccion` empiezan con `IF ( condiciones ) bloque`. Dos acciones intermedias en el mismo lugar son dos no terminales vacíos distintos, y Bison no puede elegir cuál reducir: conflicto reducción/reducción. Por eso la condición trae `fin`, y la lista `verdadero` se completa al reducir el `if`.
+- **La acción del `else` va después de `ELSE`.** Ahí solo queda una alternativa, así que no hay conflicto. El `T_BI` tiene que emitirse antes del bloque del `else`.
+- **La acción de `and` y `or` va entre `op_logico` y `condicion`.** El `T_BI` del `or` tiene que quedar antes de la segunda comparación, y los destinos que apuntan a la segunda condición se conocen recién ahí.
+
+Las tres son acciones intermedias: no cambian las producciones de `04-analizador-sintactico` §5.
+
+`loop … until` usa `condiciones` pero todavía no tiene acciones: en `p3` y `p6` el `T_BF` del `until` queda con destino `-` hasta el paso 6.
+
+### 13.5 Criterios de aceptación
+
+- Bison genera el parser sin conflictos ni warnings. Compila sin warnings con `-Wall -Wextra`.
+- Los 8 programas de `tests/correctos/` siguen en compilación exitosa.
+- Los programas con error informan lo mismo que antes.
+- Ningún `T_BF` ni `T_BI` de un `if` queda con destino `-`.
+- `p7_condiciones` (`and`, `if` sin `else`):
+
+```
+#     OPERADOR      OP1                  OP2                  TIPO       LINEA
+0     BI            DIR:1                -                    -          1
+1     ASIG          TS:s                 TS:0/1               -          4
+2     ASIG          TS:n                 TS:1/1               -          5
+3     MAYOR         TS:n                 TS:40/1              ENTERO     6
+4     BF            TER:3                DIR:8                -          6
+5     DISTINTO      TS:s                 TS:n                 ENTERO     6
+6     BF            TER:5                DIR:8                -          6
+7     WRITE         TS:s                 -                    -          7
+```
+
+- `p4_if_else` (`and` y `or`, los dos con `else`):
+
+```
+#     OPERADOR      OP1                  OP2                  TIPO       LINEA
+0     BI            DIR:1                -                    -          1
+1     ASIG          TS:a                 TS:3/4               -          5
+2     ASIG          TS:b                 TS:1/2               -          6
+3     MAYOR         TS:a                 TS:b                 ENTERO     7
+4     BF            TER:3                DIR:9                -          7
+5     DISTINTO      TS:a                 TS:1/1               ENTERO     7
+6     BF            TER:5                DIR:9                -          7
+7     ASIG          TS:r                 TS:1/1               -          8
+8     BI            DIR:10               -                    -          9
+9     ASIG          TS:r                 TS:0/1               -          10
+10    MENOR         TS:a                 TS:0/1               ENTERO     12
+11    BF            TER:10               DIR:13               -          12
+12    BI            DIR:15               -                    -          12
+13    MENOR_IGUAL   TS:b                 TS:1/2               ENTERO     12
+14    BF            TER:13               DIR:17               -          12
+15    WRITE         TS:r                 -                    -          13
+16    BI            DIR:18               -                    -          14
+17    WRITE         TS:0/1               -                    -          15
+```
