@@ -28,9 +28,9 @@ La etapa se construye en pasos. Cada uno se implementa, se prueba y se registra 
 | 2 | Acciones de expresiones y asignación | **hecho** |
 | 3 | Acciones de `write` y `return` | **hecho** |
 | 4 | Acciones de invocación de funciones | **hecho** |
-| 5 | Acciones de `if` y `if … else` | pendiente |
-| 6 | Acciones de `loop … until` | pendiente |
-| 7 | Condiciones compuestas con `and` y `or` | pendiente |
+| 5 | Acciones de `if` y `if … else` | **hecho** |
+| 6 | Acciones de `loop … until` | **hecho** |
+| 7 | Condiciones compuestas con `and` y `or` | **hecho** |
 | 8 | Revisión del archivo completo contra los programas de prueba | pendiente |
 
 Las secciones 3 a 6 corresponden al **paso 1**. Las acciones por regla se agregan a partir del paso 2.
@@ -47,6 +47,7 @@ Las secciones 3 a 6 corresponden al **paso 1**. Las acciones por regla se agrega
 | CI4 | Línea del fuente | Cada terceto la guarda. La exige F.2 punto 10 |
 | CI5 | Saltos | Backpatching sobre índices de terceto. No existen etiquetas |
 | CI6 | Ubicación del módulo | `src/intermedio/`, separado de `parser.y` |
+| CI7 | Inicio del programa | El terceto 0 es un `T_BI` al primer terceto de `main`. La gramática ya lo define como punto de entrada (D16) |
 
 ---
 
@@ -297,3 +298,78 @@ La entrada es el índice que va a tener el primer terceto del cuerpo. Se anota a
 - En `p5_funcion`, `r = cuadrado(3/2)` queda como `ASIG` de `3/2` en `x`, `CALL` a `DIR:0`, copia de `@ret_cuadrado` a `@tmp0` y `ASIG` de ese temporal en `r`. Los cuatro en la línea 7.
 - `write(cuadrado(2/3) + 1/9)` suma `@tmp1` con `1/9`.
 - No aparecen saltos ni comparaciones.
+
+---
+
+## 13. Acciones del paso 5
+
+Una comparación anota un terceto de tipo `ENTERO`. El operador sale de `op_comparacion`: `T_MENOR`, `T_MENOR_IGUAL`, `T_MAYOR`, `T_MAYOR_IGUAL`, `T_IGUAL` o `T_DISTINTO`. Los paréntesis de una condición propagan la referencia, sin terceto nuevo.
+
+`if` emite `T_BF` antes del cuerpo: si la condición es falsa, salta al terceto que sigue al `if`. El destino se completa al cerrar el cuerpo, con `completar_op2`.
+
+`if … else` hace lo mismo y, entre las dos ramas, emite `T_BI`. Ese salto pasa por encima del `else`. `completar_op2` deja el `T_BF` en el primer terceto del `else`, y `completar_op1` deja el `T_BI` en el terceto que sigue a las dos ramas. Si ese lugar es el fin del programa, el índice es el que tendría el próximo terceto y no hay fila con ese número.
+
+Los `if` anidados usan una pila: cada uno guarda su `T_BF` y, si tiene `else`, su `T_BI`.
+
+`and` y `or` todavía no se combinan. La condición compuesta emite cada comparación, y el `T_BF` usa la de la izquierda. El paso 7 arma el salto corto.
+
+El `until` ya deja anotada su comparación, porque usa la misma regla. El salto del ciclo es el paso 6.
+
+### 13.1 Criterios de aceptación
+
+- Bison genera el parser sin conflictos. Compila sin warnings con `-Wall -Wextra`.
+- Los programas de `tests/correctos/` siguen en compilación exitosa.
+- Los programas con error informan lo mismo que antes.
+- En `p4_if_else`, el primer `if` queda como `MAYOR`, `DISTINTO`, `BF` hacia el `else`, el `ASIG` del `then`, `BI` hacia el terceto siguiente y el `ASIG` del `else`.
+- En `p7_condiciones`, el `if` sin `else` tiene un `BF` cuyo destino es el índice que sigue al `WRITE`.
+- No aparece el salto del `loop`.
+
+---
+
+## 14. Acciones del paso 6
+
+`loop … until` ejecuta el cuerpo y después la condición. Si la condición es falsa, vuelve al primer terceto del cuerpo. Si es verdadera, sigue con el terceto de después.
+
+Al reconocer `loop` se guarda el índice que va a tener el cuerpo. Al cerrar el `until` se emite `T_BF`: op1 es la condición y op2 es ese índice. El destino ya se conoce, así que no hace falta completarlo después.
+
+Un `loop` anidado guarda su propio inicio en el valor de la regla. No comparte la pila del `if`.
+
+La comparación del `until` sigue siendo la del paso 5. Si la condición tiene `and` u `or`, el `BF` usa la comparación de la izquierda hasta el paso 7.
+
+### 14.1 Criterios de aceptación
+
+- Bison genera el parser sin conflictos. Compila sin warnings con `-Wall -Wextra`.
+- Los programas de `tests/correctos/` siguen en compilación exitosa.
+- Los programas con error informan lo mismo que antes.
+- En `p3_loop_until`, después de `MAYOR n > 4/1` hay un `BF` hacia el primer terceto del cuerpo, el `SUMA` de `acc + n`.
+- En `p6_overflow`, el `BF` vuelve al `DIV` de `1/1 / n`.
+
+---
+
+## 15. Acciones del paso 7
+
+No hay operador de `and` ni de `or`. Cada comparación emite su terceto y, enseguida, un `T_BF`. Caer al terceto siguiente significa que esa comparación es verdadera. El `T_BF` se completa cuando ya se sabe dónde queda el caso falso.
+
+`and` deja los `T_BF` de las dos comparaciones apuntando al mismo lugar falso. Si la izquierda es falsa, ese salto no entra en la derecha.
+
+`or` emite un `T_BI` antes de la derecha. Si la izquierda es verdadera, ese salto pasa por encima de la derecha. Si es falsa, sus `T_BF` apuntan al inicio de la derecha.
+
+El `if` y el `until` ya no agregan otro `T_BF`: completan los que armó la condición. Los verdaderos caen en el cuerpo del `if`, o afuera del `loop`. Los falsos van al `else`, a lo que sigue al `if`, o de vuelta al cuerpo del `loop`.
+
+### 15.1 Criterios de aceptación
+
+- Bison genera el parser sin conflictos. Compila sin warnings con `-Wall -Wextra`.
+- Los programas de `tests/correctos/` siguen en compilación exitosa.
+- Los programas con error informan lo mismo que antes.
+- En `p7_condiciones`, `n > 40/1 and s <> n` deja dos `BF` hacia el índice que sigue al `WRITE`. El segundo se alcanza solo si el primero no saltó.
+- En `p4_if_else`, el `or` tiene un `BI` que salta la comparación derecha cuando la izquierda es verdadera, y el `BF` de la izquierda apunta a esa comparación derecha.
+
+---
+
+## 16. Inicio en `main`
+
+La gramática ya hace de `main` el punto de entrada: `programa` termina en `funcion_main` (D16). Las otras funciones se traducen antes, en el orden del fuente, y solo se ejecutan con `T_CALL`.
+
+Para que la lista también empiece en `main`, el terceto 0 es un `T_BI`. Se emite vacío al reconocer el programa y se completa con `completar_op1` al llegar al encabezado de `main`. El destino es el primer terceto de su cuerpo.
+
+Si el programa no tiene funciones delante, ese `BI` apunta al terceto 1. Si las tiene, las salta. El `CALL` de cada función apunta a su entrada, que ya no es 0.

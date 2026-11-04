@@ -148,6 +148,160 @@ static Referencia emitir_llamada(int nombre, Referencia argumento) {
     cant_pendientes++;
     return ref_ts(temporal);
 }
+
+/* Una condición cae al terceto siguiente si es verdadera.
+   Los BF de falso[] saltan si es falsa. Los BI de verdadero[] saltan si es verdadera. */
+static Cond cond_vacia(void) {
+    Cond c;
+    c.nfalso = 0;
+    c.nverdadero = 0;
+    return c;
+}
+
+static Cond agregar_salto(Cond c, int verdadero, int salto) {
+    if (verdadero) {
+        if (c.nverdadero >= MAX_SALTOS_COND) {
+            printf("Linea %d: Error: condicion demasiado compleja\n", linea_actual);
+            hay_errores = 1;
+            return c;
+        }
+        c.verdadero[c.nverdadero++] = salto;
+    } else {
+        if (c.nfalso >= MAX_SALTOS_COND) {
+            printf("Linea %d: Error: condicion demasiado compleja\n", linea_actual);
+            hay_errores = 1;
+            return c;
+        }
+        c.falso[c.nfalso++] = salto;
+    }
+    return c;
+}
+
+static void completar_falsos(Cond c, int destino) {
+    int i;
+    for (i = 0; i < c.nfalso; i++)
+        completar_op2(c.falso[i], destino);
+}
+
+static void completar_verdaderos(Cond c, int destino) {
+    int i;
+    for (i = 0; i < c.nverdadero; i++)
+        completar_op1(c.verdadero[i], destino);
+}
+
+static Cond condicion_simple(int operador, Referencia izq, Referencia der) {
+    int cmp = emitir((OperadorTerceto)operador, izq, der, TIPO_ENTERO);
+    int salto = emitir(T_BF, ref_ter(cmp), ref_vacia(), TIPO_NINGUNO);
+    return agregar_salto(cond_vacia(), 0, salto);
+}
+
+/* and: si la izquierda es verdadera, seguir con la derecha. */
+static Cond preparar_and(Cond izq) {
+    completar_verdaderos(izq, proximo());
+    izq.nverdadero = 0;
+    return izq;
+}
+
+/* or: si la izquierda es verdadera, saltear la derecha.
+   Si es falsa, los BF quedan apuntando al inicio de la derecha. */
+static Cond preparar_or(Cond izq) {
+    int salto = emitir(T_BI, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
+
+    izq = agregar_salto(izq, 1, salto);
+    completar_falsos(izq, proximo());
+    izq.nfalso = 0;
+    return izq;
+}
+
+static Cond preparar_logico(Cond izq, int es_and) {
+    if (es_and)
+        return preparar_and(izq);
+    return preparar_or(izq);
+}
+
+static Cond juntar_falsos(Cond a, Cond b) {
+    int i;
+    for (i = 0; i < b.nfalso; i++)
+        a = agregar_salto(a, 0, b.falso[i]);
+    return a;
+}
+
+static Cond juntar_verdaderos(Cond a, Cond b) {
+    int i;
+    for (i = 0; i < b.nverdadero; i++)
+        a = agregar_salto(a, 1, b.verdadero[i]);
+    return a;
+}
+
+static Cond combinar_logico(Cond izq, int es_and, Cond der) {
+    Cond r;
+
+    if (es_and) {
+        r = juntar_falsos(izq, der);
+        r.nverdadero = 0;
+        return juntar_verdaderos(r, der);
+    }
+    r = der;
+    return juntar_verdaderos(r, izq);
+}
+
+#define MAX_SALTOS 64
+static Cond pila_cond[MAX_SALTOS];
+static int pila_bi[MAX_SALTOS];
+static int tope_saltos = 0;
+
+static void abrir_if(Cond condicion) {
+    if (tope_saltos >= MAX_SALTOS) {
+        printf("Linea %d: Error: anidamiento de if demasiado profundo\n", linea_actual);
+        hay_errores = 1;
+        return;
+    }
+    completar_verdaderos(condicion, proximo());
+    condicion.nverdadero = 0;
+    pila_cond[tope_saltos] = condicion;
+    pila_bi[tope_saltos] = -1;
+    tope_saltos++;
+}
+
+static void abrir_else(void) {
+    int salto;
+
+    if (tope_saltos <= 0)
+        return;
+    salto = emitir(T_BI, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
+    completar_falsos(pila_cond[tope_saltos - 1], proximo());
+    pila_cond[tope_saltos - 1].nfalso = 0;
+    pila_bi[tope_saltos - 1] = salto;
+}
+
+static void cerrar_if(void) {
+    if (tope_saltos <= 0)
+        return;
+    tope_saltos--;
+    if (pila_bi[tope_saltos] >= 0)
+        completar_op1(pila_bi[tope_saltos], proximo());
+    else
+        completar_falsos(pila_cond[tope_saltos], proximo());
+}
+
+/* until: la condición verdadera cae afuera. La falsa vuelve al cuerpo. */
+static void repetir_si_falso(Cond condicion, int inicio) {
+    completar_verdaderos(condicion, proximo());
+    completar_falsos(condicion, inicio);
+}
+
+/* El terceto 0 salta al cuerpo de main. Las funciones quedan delante y solo se entra con CALL. */
+static int salto_entrada = -1;
+
+static void abrir_programa(void) {
+    salto_entrada = emitir(T_BI, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
+}
+
+static void comenzar_main(void) {
+    funcion_actual = "main";
+    if (salto_entrada >= 0)
+        completar_op1(salto_entrada, proximo());
+}
 %}
 
 %define parse.error verbose
@@ -161,6 +315,8 @@ static Referencia emitir_llamada(int nombre, Referencia argumento) {
     int        indice_ts;   /* lo carga yylex para ID, CTE, CADENA */
     Referencia ref;         /* lo propagan las reglas              */
     int        operador;    /* op_comparacion y op_logico          */
+    int        indice;      /* inicio del cuerpo de un loop            */
+    Cond       cond;        /* saltos de una condicion                  */
 }
 
 %token <indice_ts> ID CTE CADENA
@@ -172,13 +328,19 @@ static Referencia emitir_llamada(int nombre, Referencia argumento) {
 %token IF ELSE VAR LOOP UNTIL OR AND WRITE MAIN RETURN
 
 %type <ref> expresion termino factor invocacion
+%type <cond> condiciones condicion
+%type <operador> op_comparacion op_logico
 
 %start programa
 
 %%
 
-programa            : lista_funciones funcion_main
-                    | funcion_main
+programa            : entrada lista_funciones funcion_main
+                    | entrada funcion_main
+                    ;
+
+entrada             : %empty
+                        { abrir_programa(); }
                     ;
 
 lista_funciones     : lista_funciones definicion_funcion
@@ -191,7 +353,7 @@ definicion_funcion  : ID PAR_ABRE ID PAR_CIERRA
                     ;
 
 funcion_main        : MAIN PAR_ABRE PAR_CIERRA
-                        { funcion_actual = "main"; }
+                        { comenzar_main(); }
                       cuerpo
                     ;
 
@@ -235,22 +397,40 @@ salida              : WRITE PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA
                         { emitir(T_WRITE_STR, ref_ts($3), ref_vacia(), TIPO_NINGUNO); }
                     ;
 
-seleccion           : IF PAR_ABRE condiciones PAR_CIERRA bloque
-                    | IF PAR_ABRE condiciones PAR_CIERRA bloque ELSE bloque
+seleccion           : IF PAR_ABRE condiciones PAR_CIERRA
+                        { abrir_if($3); }
+                      bloque
+                      fin_seleccion
                     ;
 
-iteracion           : LOOP bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA
+fin_seleccion       : ELSE
+                        { abrir_else(); }
+                      bloque
+                        { cerrar_if(); }
+                    | %empty
+                        { cerrar_if(); }
+                    ;
+
+iteracion           : LOOP
+                        { $<indice>$ = proximo(); }
+                      bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA
+                        { repetir_si_falso($6, $<indice>2); }
                     ;
 
 bloque              : LLAVE_ABRE lista_sentencias LLAVE_CIERRA
                     ;
 
-condiciones         : condiciones op_logico condicion
+condiciones         : condiciones op_logico
+                        { $<cond>$ = preparar_logico($1, $2); }
+                      condicion
+                        { $$ = combinar_logico($<cond>3, $2, $4); }
                     | condicion
                     ;
 
 condicion           : expresion op_comparacion expresion
+                        { $$ = condicion_simple($2, $1, $3); }
                     | PAR_ABRE condiciones PAR_CIERRA
+                        { $$ = $2; }
                     ;
 
 expresion           : expresion OP_SUMA termino
@@ -281,16 +461,16 @@ invocacion          : ID PAR_ABRE expresion PAR_CIERRA
                         { $$ = emitir_llamada($1, $3); }
                     ;
 
-op_comparacion      : OP_MENOR
-                    | OP_MENOR_IGUAL
-                    | OP_MAYOR
-                    | OP_MAYOR_IGUAL
-                    | OP_IGUAL
-                    | OP_DISTINTO
+op_comparacion      : OP_MENOR          { $$ = T_MENOR; }
+                    | OP_MENOR_IGUAL    { $$ = T_MENOR_IGUAL; }
+                    | OP_MAYOR          { $$ = T_MAYOR; }
+                    | OP_MAYOR_IGUAL    { $$ = T_MAYOR_IGUAL; }
+                    | OP_IGUAL          { $$ = T_IGUAL; }
+                    | OP_DISTINTO       { $$ = T_DISTINTO; }
                     ;
 
-op_logico           : AND
-                    | OR
+op_logico           : AND               { $$ = 1; }
+                    | OR                { $$ = 0; }
                     ;
 
 %%

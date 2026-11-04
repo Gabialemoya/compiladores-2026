@@ -10,6 +10,16 @@ typedef struct {
     int      valor;
 } Referencia;
 
+/* Saltos incompletos de una condición. Caer al terceto siguiente es verdadero. */
+#define MAX_SALTOS_COND 32
+
+typedef struct {
+    int falso[MAX_SALTOS_COND];
+    int nfalso;
+    int verdadero[MAX_SALTOS_COND];
+    int nverdadero;
+} Cond;
+
 typedef enum { TIPO_NINGUNO = 0, TIPO_RACIONAL, TIPO_ENTERO } TipoResultado;
 
 typedef enum {
