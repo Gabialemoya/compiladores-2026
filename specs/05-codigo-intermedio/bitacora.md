@@ -20,3 +20,4 @@
 | 02/11/2026 | Grupo | Paso 6: `until` emite `BF` al primer terceto del cuerpo si la condición es falsa.  | En `p3` ese destino es el `SUMA` de `acc + n`. Si la comparación es verdadera, sigue debajo del ciclo.    |
 | 02/11/2026 | Grupo | Paso 7: `and` y `or` se arman con `BF` y `BI`, sin un operador nuevo.             | `and` salta la derecha si la izquierda es falsa. `or` la salta con `BI` si la izquierda es verdadera.   |
 | 02/11/2026 | Grupo | El terceto 0 es un `BI` al primer terceto de `main`.                             | La gramática ya lo fija como entrada (D16, CI7). Las funciones anteriores solo se alcanzan con `CALL`. |
+| 04/11/2026 | Grupo | Paso 8: se revisó `out/tercetos.txt` de los ocho correctos y de los cinco con error. | Saltos completos. E6, E7 y E9 siguen sin informarse: están fuera de esta etapa.                        |

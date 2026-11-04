@@ -155,21 +155,83 @@ El argumento es la ruta de un fuente `.rg`. El listado de tokens se imprime en p
 
 
 
-## Analizador sintáctico
+## Compilador
+
+Léxico, sintaxis y tercetos. Desde la raíz del repositorio.
 
 ### Cómo compilar
 
-Desde la raíz del repositorio:
-
 ```
 win_bison -d --report=all -o src/parser/parser.tab.c src/parser/parser.y
-gcc src/parser/parser.tab.c src/lexico/lexico.c -o compilador.exe
+gcc -Wall -Wextra -o compilador.exe src/parser/parser.tab.c src/lexico/lexico.c src/intermedio/tercetos.c
 ```
 
-### Cómo ejecutar
+El primer comando regenera el parser. Hay que repetirlo cada vez que cambia `src/parser/parser.y`.
+
+### Cómo ejecutar un caso
 
 ```
 .\compilador.exe tests\correctos\p1_suma.rg
 ```
 
-El argumento es la ruta de un fuente `.rg`. El veredicto se imprime en pantalla. El listado de tokens queda en `out/tokens.txt` y la tabla de símbolos en `out/ts.txt`. Si `out/` no existe, el programa la crea.
+El argumento es la ruta de un fuente `.rg`. El veredicto sale por pantalla: `Compilacion EXITOSA` o `Compilacion completa con ERRORES`. Cada corrida pisa los mismos tres archivos:
+
+| Archivo | Contenido |
+| --- | --- |
+| `out/tokens.txt` | Tokens del fuente |
+| `out/ts.txt` | Tabla de símbolos |
+| `out/tercetos.txt` | Código intermedio |
+
+Si `out/` no existe, el programa la crea. La traza de Bison sale por el error estándar. Para ver solo el veredicto:
+
+```
+.\compilador.exe tests\correctos\p1_suma.rg 2>$null
+```
+
+### Casos de prueba
+
+Se cambia la ruta. El resto del comando queda igual.
+
+Programas correctos:
+
+```
+.\compilador.exe tests\correctos\p1_suma.rg
+.\compilador.exe tests\correctos\p2_normalizar.rg
+.\compilador.exe tests\correctos\p3_loop_until.rg
+.\compilador.exe tests\correctos\p4_if_else.rg
+.\compilador.exe tests\correctos\p5_funcion.rg
+.\compilador.exe tests\correctos\p6_overflow.rg
+.\compilador.exe tests\correctos\p7_condiciones.rg
+.\compilador.exe tests\correctos\p8_expresiones.rg
+```
+
+| Fuente | Qué ejercita |
+| --- | --- |
+| `p1_suma.rg` | `1/2 + 1/3`, `write` de cadena y de expresión |
+| `p2_normalizar.rg` | La constante `2/4` queda `1/2` |
+| `p3_loop_until.rg` | `loop … until` |
+| `p4_if_else.rg` | `if … else` con `and` y con `or` |
+| `p5_funcion.rg` | Función con un parámetro y dos llamadas |
+| `p6_overflow.rg` | Ciclo que agranda el denominador |
+| `p7_condiciones.rg` | `if` sin `else` y condición con `and` |
+| `p8_expresiones.rg` | Precedencia de `+ - * /` y paréntesis |
+
+Programas con error:
+
+```
+.\compilador.exe tests\errores-lexicos-sintacticos\el1_caracter.rg
+.\compilador.exe tests\errores-lexicos-sintacticos\el2_constante.rg
+.\compilador.exe tests\errores-lexicos-sintacticos\es1_sentencia.rg
+.\compilador.exe tests\errores-semanticos\em1_declaracion.rg
+.\compilador.exe tests\errores-semanticos\em2_recursion.rg
+```
+
+| Fuente | Qué se espera |
+| --- | --- |
+| `el1_caracter.rg` | Error léxico E1: un carácter fuera del alfabeto |
+| `el2_constante.rg` | Error léxico E2 y error sintáctico E5 en la misma línea |
+| `es1_sentencia.rg` | Error sintáctico E5: falta el `;` de la asignación |
+| `em1_declaracion.rg` | Variable repetida y uso de una no declarada. E6 y E7 todavía no se informan |
+| `em2_recursion.rg` | Llamada recursiva directa. E9 todavía no se informa |
+
+Los dos últimos compilan como exitosos: esos controles semánticos están fuera de la etapa de tercetos.

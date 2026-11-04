@@ -31,7 +31,7 @@ La etapa se construye en pasos. Cada uno se implementa, se prueba y se registra 
 | 5 | Acciones de `if` y `if … else` | **hecho** |
 | 6 | Acciones de `loop … until` | **hecho** |
 | 7 | Condiciones compuestas con `and` y `or` | **hecho** |
-| 8 | Revisión del archivo completo contra los programas de prueba | pendiente |
+| 8 | Revisión del archivo completo contra los programas de prueba | **hecho** |
 
 Las secciones 3 a 6 corresponden al **paso 1**. Las acciones por regla se agregan a partir del paso 2.
 
@@ -373,3 +373,26 @@ La gramática ya hace de `main` el punto de entrada: `programa` termina en `func
 Para que la lista también empiece en `main`, el terceto 0 es un `T_BI`. Se emite vacío al reconocer el programa y se completa con `completar_op1` al llegar al encabezado de `main`. El destino es el primer terceto de su cuerpo.
 
 Si el programa no tiene funciones delante, ese `BI` apunta al terceto 1. Si las tiene, las salta. El `CALL` de cada función apunta a su entrada, que ya no es 0.
+
+---
+
+## 17. Revisión del paso 8
+
+Se recompila con Bison y con `gcc -Wall -Wextra`. El parser no tiene conflictos y la compilación no tiene advertencias. Cada programa de `tests/` se corre y se lee `out/tercetos.txt` contra el fuente.
+
+El terceto 0 es el `BI` de §16, así que los índices citados en los pasos 2 a 7 quedan corridos uno respecto de esas secciones.
+
+| Programa | Contraste |
+| --- | --- |
+| `p1_suma` | `BI` a 1. `SUMA` de `a + b` antes del `ASIG` de `c`. `WRITE_STR` de `Resultado` y `WRITE` de `c`. |
+| `p2_normalizar` | `2/4` queda `TS:1/2`, porque el léxico ya normaliza la constante. |
+| `p3_loop_until` | El `BF` del `until` vuelve al `SUMA` de `acc + n`. |
+| `p4_if_else` | El `and` deja dos `BF` en el `else`. El `or` tiene un `BI` que salta la comparación derecha y el `BF` de la izquierda entra en ella. |
+| `p5_funcion` | El `BI` inicial va al primer terceto de `main`. `CALL` entra a `cuadrado`, que quedó delante. |
+| `p6_overflow` | `1/1 / n` es `DIV` antes que la `SUMA`. El `BF` vuelve a ese `DIV`. |
+| `p7_condiciones` | Los dos `BF` del `and` apuntan al índice que sigue al `WRITE`. |
+| `p8_expresiones` | `*` y `/` quedan antes que `+` y `-`. Los paréntesis no agregan terceto. |
+
+Los programas con error léxico o sintáctico informan lo mismo que antes de esta etapa. `em1_declaracion` y `em2_recursion` siguen compilando: E6, E7 y E9 están fuera de alcance (§1.1).
+
+Ningún `BF`, `BI` ni `CALL` queda con destino vacío. Un destino igual a la cantidad de tercetos es el lugar que sigue al último, y aparece cuando el `if` o el `else` cierran el programa.

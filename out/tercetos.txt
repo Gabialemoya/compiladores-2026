@@ -1,8 +1,10 @@
 #     OPERADOR      OP1                  OP2                  TIPO       LINEA
-0     BI            DIR:1                -                    -          1
-1     ASIG          TS:a                 TS:1/2               -          5
-2     ASIG          TS:b                 TS:1/3               -          6
-3     SUMA          TS:a                 TS:b                 RACIONAL   7
-4     ASIG          TS:c                 TER:3                -          7
-5     WRITE_STR     TS:Resultado         -                    -          8
-6     WRITE         TS:c                 -                    -          9
+0     BI            DIR:6                -                    -          1
+1     ASIG          TS:x                 TS:x                 -          2
+2     CALL          DIR:1                -                    -          2
+3     ASIG          TS:@tmp0             TS:@ret_f            -          2
+4     ASIG          TS:@ret_f            TS:@tmp0             -          2
+5     RET           -                    -                    -          2
+6     ASIG          TS:x                 TS:1/1               -          6
+7     CALL          DIR:1                -                    -          6
+8     ASIG          TS:@tmp1             TS:@ret_f            -          6
