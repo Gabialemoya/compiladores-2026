@@ -13,6 +13,10 @@
 Terceto tercetos[MAX_TERCETOS];
 int cant_tercetos = 0;
 
+#define MAX_PILA_NRO 64
+static int pila_nro[MAX_PILA_NRO];
+static int tope_pila_nro = 0;
+
 static Referencia ref_nueva(ClaseRef clase, int valor) {
     Referencia r;
     r.clase = clase;
@@ -20,23 +24,19 @@ static Referencia ref_nueva(ClaseRef clase, int valor) {
     return r;
 }
 
-Referencia ref_vacia(void) {
+Referencia apilar(int ptr) {
+    return ref_nueva(REF_TS, ptr);
+}
+
+Referencia apilar_ti(int ti) {
+    return ref_nueva(REF_TER, ti);
+}
+
+Referencia sin_operando(void) {
     return ref_nueva(REF_VACIO, 0);
 }
 
-Referencia ref_ts(int indice) {
-    return ref_nueva(REF_TS, indice);
-}
-
-Referencia ref_ter(int indice) {
-    return ref_nueva(REF_TER, indice);
-}
-
-Referencia ref_dir(int indice) {
-    return ref_nueva(REF_DIR, indice);
-}
-
-int emitir(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo) {
+static int crear(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo) {
     Terceto *t;
     int linea = linea_anterior > 0 ? linea_anterior : linea_actual;
 
@@ -55,27 +55,45 @@ int emitir(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tip
     return cant_tercetos++;
 }
 
-int proximo(void) {
+int colocar(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo) {
+    return crear(op, op1, op2, tipo);
+}
+
+int crear_terceto(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo) {
+    return crear(op, op1, op2, tipo);
+}
+
+int nro_terceto(void) {
     return cant_tercetos;
 }
 
-static void completar(int indice, Referencia *op, int destino) {
-    if (indice < 0 || indice >= cant_tercetos)
+void completar(int t, int destino) {
+    Referencia *hueco;
+
+    if (t < 0 || t >= cant_tercetos)
         return;
-    op->clase = REF_DIR;
-    op->valor = destino;
+    /* El ? de un BF está en op2. En BI y CALL está en op1. */
+    if (tercetos[t].operador == T_BF)
+        hueco = &tercetos[t].op2;
+    else
+        hueco = &tercetos[t].op1;
+    hueco->clase = REF_DIR;
+    hueco->valor = destino;
 }
 
-void completar_op1(int indice, int destino) {
-    if (indice < 0 || indice >= cant_tercetos)
+void apilar_nro(int nro) {
+    if (tope_pila_nro >= MAX_PILA_NRO) {
+        printf("Linea %d: Error: pila de saltos llena\n", linea_actual);
+        hay_errores = 1;
         return;
-    completar(indice, &tercetos[indice].op1, destino);
+    }
+    pila_nro[tope_pila_nro++] = nro;
 }
 
-void completar_op2(int indice, int destino) {
-    if (indice < 0 || indice >= cant_tercetos)
-        return;
-    completar(indice, &tercetos[indice].op2, destino);
+int desapilar(void) {
+    if (tope_pila_nro <= 0)
+        return -1;
+    return pila_nro[--tope_pila_nro];
 }
 
 static const char *nombre_operador(OperadorTerceto op) {

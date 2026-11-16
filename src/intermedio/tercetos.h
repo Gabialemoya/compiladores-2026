@@ -10,7 +10,8 @@ typedef struct {
     int      valor;
 } Referencia;
 
-/* Saltos incompletos de una condición. Caer al terceto siguiente es verdadero. */
+/* Saltos de una condición que todavía no tienen destino.
+   Caer al terceto siguiente es verdadero. */
 #define MAX_SALTOS_COND 32
 
 typedef struct {
@@ -42,14 +43,19 @@ typedef struct {
 extern Terceto tercetos[MAX_TERCETOS];
 extern int     cant_tercetos;
 
-Referencia ref_vacia(void);
-Referencia ref_ts(int indice);
-Referencia ref_ter(int indice);
-Referencia ref_dir(int indice);
-int emitir(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo);
-int proximo(void);
-void completar_op1(int indice, int destino);
-void completar_op2(int indice, int destino);
+Referencia apilar(int ptr);
+Referencia apilar_ti(int ti);
+Referencia sin_operando(void);
+
+int colocar(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo);
+int crear_terceto(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo);
+
+int nro_terceto(void);
+void completar(int t, int destino);
+
+void apilar_nro(int nro);
+int desapilar(void);
+
 void imprimir_tercetos(const char *ruta);
 
 #endif

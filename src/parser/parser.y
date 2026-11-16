@@ -66,9 +66,9 @@ static void poner_ref(int indice, int operando, Referencia ref) {
 
 static void completar_llamada(int asig_arg, int call, int asig_ret,
                               int parametro, int entrada, int celda) {
-    poner_ref(asig_arg, 1, ref_ts(parametro));
-    completar_op1(call, entrada);
-    poner_ref(asig_ret, 2, ref_ts(celda));
+    poner_ref(asig_arg, 1, apilar(parametro));
+    completar(call, entrada);
+    poner_ref(asig_ret, 2, apilar(celda));
 }
 
 static void registrar_funcion(int nombre, int parametro) {
@@ -82,7 +82,7 @@ static void registrar_funcion(int nombre, int parametro) {
 
     funcion_actual = ts[nombre].nombre;
     celda = celda_retorno_de(funcion_actual);
-    entrada = proximo();
+    entrada = nro_terceto();
 
     pos = buscar_funcion(nombre);
     if (pos < 0) {
@@ -120,25 +120,26 @@ static Referencia emitir_llamada(int nombre, Referencia argumento) {
 
     temporal = nuevo_temporal();
     if (nombre < 0 || nombre >= ts_size || temporal < 0)
-        return ref_vacia();
+        return sin_operando();
 
     pos = buscar_funcion(nombre);
     if (pos >= 0) {
         celda = celda_retorno_de(ts[nombre].nombre);
-        emitir(T_ASIG, ref_ts(funciones[pos].parametro), argumento, TIPO_NINGUNO);
-        emitir(T_CALL, ref_dir(funciones[pos].entrada), ref_vacia(), TIPO_NINGUNO);
-        emitir(T_ASIG, ref_ts(temporal), ref_ts(celda), TIPO_NINGUNO);
-        return ref_ts(temporal);
+        colocar(T_ASIG, apilar(funciones[pos].parametro), argumento, TIPO_NINGUNO);
+        completar(crear_terceto(T_CALL, sin_operando(), sin_operando(), TIPO_NINGUNO),
+                  funciones[pos].entrada);
+        colocar(T_ASIG, apilar(temporal), apilar(celda), TIPO_NINGUNO);
+        return apilar(temporal);
     }
 
-    asig_arg = emitir(T_ASIG, ref_vacia(), argumento, TIPO_NINGUNO);
-    call = emitir(T_CALL, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
-    asig_ret = emitir(T_ASIG, ref_ts(temporal), ref_vacia(), TIPO_NINGUNO);
+    asig_arg = colocar(T_ASIG, sin_operando(), argumento, TIPO_NINGUNO);
+    call = crear_terceto(T_CALL, sin_operando(), sin_operando(), TIPO_NINGUNO);
+    asig_ret = colocar(T_ASIG, apilar(temporal), sin_operando(), TIPO_NINGUNO);
 
     if (cant_pendientes >= MAX_PENDIENTES) {
         printf("Linea %d: Error: demasiadas llamadas pendientes\n", linea_actual);
         hay_errores = 1;
-        return ref_ts(temporal);
+        return apilar(temporal);
     }
 
     pendientes[cant_pendientes].nombre = nombre;
@@ -146,7 +147,7 @@ static Referencia emitir_llamada(int nombre, Referencia argumento) {
     pendientes[cant_pendientes].call = call;
     pendientes[cant_pendientes].asig_ret = asig_ret;
     cant_pendientes++;
-    return ref_ts(temporal);
+    return apilar(temporal);
 }
 
 /* Una condición cae al terceto siguiente si es verdadera.
@@ -180,24 +181,24 @@ static Cond agregar_salto(Cond c, int verdadero, int salto) {
 static void completar_falsos(Cond c, int destino) {
     int i;
     for (i = 0; i < c.nfalso; i++)
-        completar_op2(c.falso[i], destino);
+        completar(c.falso[i], destino);
 }
 
 static void completar_verdaderos(Cond c, int destino) {
     int i;
     for (i = 0; i < c.nverdadero; i++)
-        completar_op1(c.verdadero[i], destino);
+        completar(c.verdadero[i], destino);
 }
 
 static Cond condicion_simple(int operador, Referencia izq, Referencia der) {
-    int cmp = emitir((OperadorTerceto)operador, izq, der, TIPO_ENTERO);
-    int salto = emitir(T_BF, ref_ter(cmp), ref_vacia(), TIPO_NINGUNO);
+    int cmp = colocar((OperadorTerceto)operador, izq, der, TIPO_ENTERO);
+    int salto = crear_terceto(T_BF, apilar_ti(cmp), sin_operando(), TIPO_NINGUNO);
     return agregar_salto(cond_vacia(), 0, salto);
 }
 
 /* and: si la izquierda es verdadera, seguir con la derecha. */
 static Cond preparar_and(Cond izq) {
-    completar_verdaderos(izq, proximo());
+    completar_verdaderos(izq, nro_terceto());
     izq.nverdadero = 0;
     return izq;
 }
@@ -205,10 +206,10 @@ static Cond preparar_and(Cond izq) {
 /* or: si la izquierda es verdadera, saltear la derecha.
    Si es falsa, los BF quedan apuntando al inicio de la derecha. */
 static Cond preparar_or(Cond izq) {
-    int salto = emitir(T_BI, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
+    int salto = crear_terceto(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO);
 
     izq = agregar_salto(izq, 1, salto);
-    completar_falsos(izq, proximo());
+    completar_falsos(izq, nro_terceto());
     izq.nfalso = 0;
     return izq;
 }
@@ -247,7 +248,6 @@ static Cond combinar_logico(Cond izq, int es_and, Cond der) {
 
 #define MAX_SALTOS 64
 static Cond pila_cond[MAX_SALTOS];
-static int pila_bi[MAX_SALTOS];
 static int tope_saltos = 0;
 
 static void abrir_if(Cond condicion) {
@@ -256,10 +256,10 @@ static void abrir_if(Cond condicion) {
         hay_errores = 1;
         return;
     }
-    completar_verdaderos(condicion, proximo());
+    completar_verdaderos(condicion, nro_terceto());
     condicion.nverdadero = 0;
     pila_cond[tope_saltos] = condicion;
-    pila_bi[tope_saltos] = -1;
+    apilar_nro(-1);
     tope_saltos++;
 }
 
@@ -268,25 +268,29 @@ static void abrir_else(void) {
 
     if (tope_saltos <= 0)
         return;
-    salto = emitir(T_BI, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
-    completar_falsos(pila_cond[tope_saltos - 1], proximo());
+    desapilar();
+    salto = crear_terceto(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO);
+    completar_falsos(pila_cond[tope_saltos - 1], nro_terceto());
     pila_cond[tope_saltos - 1].nfalso = 0;
-    pila_bi[tope_saltos - 1] = salto;
+    apilar_nro(salto);
 }
 
 static void cerrar_if(void) {
+    int marca;
+
     if (tope_saltos <= 0)
         return;
     tope_saltos--;
-    if (pila_bi[tope_saltos] >= 0)
-        completar_op1(pila_bi[tope_saltos], proximo());
+    marca = desapilar();
+    if (marca >= 0)
+        completar(marca, nro_terceto());
     else
-        completar_falsos(pila_cond[tope_saltos], proximo());
+        completar_falsos(pila_cond[tope_saltos], nro_terceto());
 }
 
 /* until: la condición verdadera cae afuera. La falsa vuelve al cuerpo. */
 static void repetir_si_falso(Cond condicion, int inicio) {
-    completar_verdaderos(condicion, proximo());
+    completar_verdaderos(condicion, nro_terceto());
     completar_falsos(condicion, inicio);
 }
 
@@ -294,13 +298,13 @@ static void repetir_si_falso(Cond condicion, int inicio) {
 static int salto_entrada = -1;
 
 static void abrir_programa(void) {
-    salto_entrada = emitir(T_BI, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
+    salto_entrada = crear_terceto(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO);
 }
 
 static void comenzar_main(void) {
     funcion_actual = "main";
     if (salto_entrada >= 0)
-        completar_op1(salto_entrada, proximo());
+        completar(salto_entrada, nro_terceto());
 }
 %}
 
@@ -313,10 +317,9 @@ static void comenzar_main(void) {
 
 %union {
     int        indice_ts;   /* lo carga yylex para ID, CTE, CADENA */
-    Referencia ref;         /* lo propagan las reglas              */
+    Referencia ref;         /* operando apilado                    */
     int        operador;    /* op_comparacion y op_logico          */
-    int        indice;      /* inicio del cuerpo de un loop            */
-    Cond       cond;        /* saltos de una condicion                  */
+    Cond       cond;        /* saltos incompletos de una condición */
 }
 
 %token <indice_ts> ID CTE CADENA
@@ -381,20 +384,20 @@ sentencia           : asignacion
                     ;
 
 asignacion          : ID OP_ASIG expresion PUNTO_Y_COMA
-                        { emitir(T_ASIG, ref_ts($1), $3, TIPO_NINGUNO); }
+                        { colocar(T_ASIG, apilar($1), $3, TIPO_NINGUNO); }
                     ;
 
 retorno             : RETURN expresion PUNTO_Y_COMA
                         {
-                            emitir(T_ASIG, ref_ts(celda_retorno_de(funcion_actual)), $2, TIPO_NINGUNO);
-                            emitir(T_RET, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
+                            colocar(T_ASIG, apilar(celda_retorno_de(funcion_actual)), $2, TIPO_NINGUNO);
+                            colocar(T_RET, sin_operando(), sin_operando(), TIPO_NINGUNO);
                         }
                     ;
 
 salida              : WRITE PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA
-                        { emitir(T_WRITE, $3, ref_vacia(), TIPO_NINGUNO); }
+                        { colocar(T_WRITE, $3, sin_operando(), TIPO_NINGUNO); }
                     | WRITE PAR_ABRE CADENA PAR_CIERRA PUNTO_Y_COMA
-                        { emitir(T_WRITE_STR, ref_ts($3), ref_vacia(), TIPO_NINGUNO); }
+                        { colocar(T_WRITE_STR, apilar($3), sin_operando(), TIPO_NINGUNO); }
                     ;
 
 seleccion           : IF PAR_ABRE condiciones PAR_CIERRA
@@ -412,9 +415,9 @@ fin_seleccion       : ELSE
                     ;
 
 iteracion           : LOOP
-                        { $<indice>$ = proximo(); }
+                        { apilar_nro(nro_terceto()); }
                       bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA
-                        { repetir_si_falso($6, $<indice>2); }
+                        { repetir_si_falso($6, desapilar()); }
                     ;
 
 bloque              : LLAVE_ABRE lista_sentencias LLAVE_CIERRA
@@ -434,23 +437,23 @@ condicion           : expresion op_comparacion expresion
                     ;
 
 expresion           : expresion OP_SUMA termino
-                        { $$ = ref_ter(emitir(T_SUMA, $1, $3, TIPO_RACIONAL)); }
+                        { $$ = apilar_ti(colocar(T_SUMA, $1, $3, TIPO_RACIONAL)); }
                     | expresion OP_RESTA termino
-                        { $$ = ref_ter(emitir(T_RESTA, $1, $3, TIPO_RACIONAL)); }
+                        { $$ = apilar_ti(colocar(T_RESTA, $1, $3, TIPO_RACIONAL)); }
                     | termino
                     ;
 
 termino             : termino OP_MUL factor
-                        { $$ = ref_ter(emitir(T_MUL, $1, $3, TIPO_RACIONAL)); }
+                        { $$ = apilar_ti(colocar(T_MUL, $1, $3, TIPO_RACIONAL)); }
                     | termino OP_DIV factor
-                        { $$ = ref_ter(emitir(T_DIV, $1, $3, TIPO_RACIONAL)); }
+                        { $$ = apilar_ti(colocar(T_DIV, $1, $3, TIPO_RACIONAL)); }
                     | factor
                     ;
 
 factor              : ID
-                        { $$ = ref_ts($1); }
+                        { $$ = apilar($1); }
                     | CTE
-                        { $$ = ref_ts($1); }
+                        { $$ = apilar($1); }
                     | invocacion
                         { $$ = $1; }
                     | PAR_ABRE expresion PAR_CIERRA

@@ -21,3 +21,7 @@
 | 02/11/2026 | Grupo | Paso 7: `and` y `or` se arman con `BF` y `BI`, sin un operador nuevo.             | `and` salta la derecha si la izquierda es falsa. `or` la salta con `BI` si la izquierda es verdadera.   |
 | 02/11/2026 | Grupo | El terceto 0 es un `BI` al primer terceto de `main`.                             | La gramática ya lo fija como entrada (D16, CI7). Las funciones anteriores solo se alcanzan con `CALL`. |
 | 04/11/2026 | Grupo | Paso 8: se revisó `out/tercetos.txt` de los ocho correctos y de los cinco con error. | Saltos completos. E6, E7 y E9 siguen sin informarse: están fuera de esta etapa.                        |
+| 09/11/2026 | Grupo | La spec deja el diario de pasos 1 a 8 y describe el comportamiento final: qué apila, coloca o completa cada reducción. | El código y `out/tercetos.txt` no cambian. La pila simbólica es el valor semántico de Bison.          |
+| 09/11/2026 | Grupo | Cada reducción de la spec nombra la acción que ya está en `parser.y`. Los paréntesis copian `$2`, no `$1`. | Los comentarios del `%union` y de `Cond` quedan iguales a los de la spec.                            |
+| 09/11/2026 | Grupo | La generación usa los nombres: `apilar`, `colocar`, `crear_terceto`, `nro_terceto`, `completar`, `apilar_nro` y `desapilar`. | La lista de tercetos de los ocho correctos no cambia.                                                    |
+| 09/11/2026 | Grupo | La spec queda como el contrato del generador: terceto, operaciones y qué agrega cada reducción. |                                            |

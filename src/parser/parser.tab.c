@@ -136,9 +136,9 @@ static void poner_ref(int indice, int operando, Referencia ref) {
 
 static void completar_llamada(int asig_arg, int call, int asig_ret,
                               int parametro, int entrada, int celda) {
-    poner_ref(asig_arg, 1, ref_ts(parametro));
-    completar_op1(call, entrada);
-    poner_ref(asig_ret, 2, ref_ts(celda));
+    poner_ref(asig_arg, 1, apilar(parametro));
+    completar(call, entrada);
+    poner_ref(asig_ret, 2, apilar(celda));
 }
 
 static void registrar_funcion(int nombre, int parametro) {
@@ -152,7 +152,7 @@ static void registrar_funcion(int nombre, int parametro) {
 
     funcion_actual = ts[nombre].nombre;
     celda = celda_retorno_de(funcion_actual);
-    entrada = proximo();
+    entrada = nro_terceto();
 
     pos = buscar_funcion(nombre);
     if (pos < 0) {
@@ -190,25 +190,26 @@ static Referencia emitir_llamada(int nombre, Referencia argumento) {
 
     temporal = nuevo_temporal();
     if (nombre < 0 || nombre >= ts_size || temporal < 0)
-        return ref_vacia();
+        return sin_operando();
 
     pos = buscar_funcion(nombre);
     if (pos >= 0) {
         celda = celda_retorno_de(ts[nombre].nombre);
-        emitir(T_ASIG, ref_ts(funciones[pos].parametro), argumento, TIPO_NINGUNO);
-        emitir(T_CALL, ref_dir(funciones[pos].entrada), ref_vacia(), TIPO_NINGUNO);
-        emitir(T_ASIG, ref_ts(temporal), ref_ts(celda), TIPO_NINGUNO);
-        return ref_ts(temporal);
+        colocar(T_ASIG, apilar(funciones[pos].parametro), argumento, TIPO_NINGUNO);
+        completar(crear_terceto(T_CALL, sin_operando(), sin_operando(), TIPO_NINGUNO),
+                  funciones[pos].entrada);
+        colocar(T_ASIG, apilar(temporal), apilar(celda), TIPO_NINGUNO);
+        return apilar(temporal);
     }
 
-    asig_arg = emitir(T_ASIG, ref_vacia(), argumento, TIPO_NINGUNO);
-    call = emitir(T_CALL, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
-    asig_ret = emitir(T_ASIG, ref_ts(temporal), ref_vacia(), TIPO_NINGUNO);
+    asig_arg = colocar(T_ASIG, sin_operando(), argumento, TIPO_NINGUNO);
+    call = crear_terceto(T_CALL, sin_operando(), sin_operando(), TIPO_NINGUNO);
+    asig_ret = colocar(T_ASIG, apilar(temporal), sin_operando(), TIPO_NINGUNO);
 
     if (cant_pendientes >= MAX_PENDIENTES) {
         printf("Linea %d: Error: demasiadas llamadas pendientes\n", linea_actual);
         hay_errores = 1;
-        return ref_ts(temporal);
+        return apilar(temporal);
     }
 
     pendientes[cant_pendientes].nombre = nombre;
@@ -216,7 +217,7 @@ static Referencia emitir_llamada(int nombre, Referencia argumento) {
     pendientes[cant_pendientes].call = call;
     pendientes[cant_pendientes].asig_ret = asig_ret;
     cant_pendientes++;
-    return ref_ts(temporal);
+    return apilar(temporal);
 }
 
 /* Una condición cae al terceto siguiente si es verdadera.
@@ -250,24 +251,24 @@ static Cond agregar_salto(Cond c, int verdadero, int salto) {
 static void completar_falsos(Cond c, int destino) {
     int i;
     for (i = 0; i < c.nfalso; i++)
-        completar_op2(c.falso[i], destino);
+        completar(c.falso[i], destino);
 }
 
 static void completar_verdaderos(Cond c, int destino) {
     int i;
     for (i = 0; i < c.nverdadero; i++)
-        completar_op1(c.verdadero[i], destino);
+        completar(c.verdadero[i], destino);
 }
 
 static Cond condicion_simple(int operador, Referencia izq, Referencia der) {
-    int cmp = emitir((OperadorTerceto)operador, izq, der, TIPO_ENTERO);
-    int salto = emitir(T_BF, ref_ter(cmp), ref_vacia(), TIPO_NINGUNO);
+    int cmp = colocar((OperadorTerceto)operador, izq, der, TIPO_ENTERO);
+    int salto = crear_terceto(T_BF, apilar_ti(cmp), sin_operando(), TIPO_NINGUNO);
     return agregar_salto(cond_vacia(), 0, salto);
 }
 
 /* and: si la izquierda es verdadera, seguir con la derecha. */
 static Cond preparar_and(Cond izq) {
-    completar_verdaderos(izq, proximo());
+    completar_verdaderos(izq, nro_terceto());
     izq.nverdadero = 0;
     return izq;
 }
@@ -275,10 +276,10 @@ static Cond preparar_and(Cond izq) {
 /* or: si la izquierda es verdadera, saltear la derecha.
    Si es falsa, los BF quedan apuntando al inicio de la derecha. */
 static Cond preparar_or(Cond izq) {
-    int salto = emitir(T_BI, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
+    int salto = crear_terceto(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO);
 
     izq = agregar_salto(izq, 1, salto);
-    completar_falsos(izq, proximo());
+    completar_falsos(izq, nro_terceto());
     izq.nfalso = 0;
     return izq;
 }
@@ -317,7 +318,6 @@ static Cond combinar_logico(Cond izq, int es_and, Cond der) {
 
 #define MAX_SALTOS 64
 static Cond pila_cond[MAX_SALTOS];
-static int pila_bi[MAX_SALTOS];
 static int tope_saltos = 0;
 
 static void abrir_if(Cond condicion) {
@@ -326,10 +326,10 @@ static void abrir_if(Cond condicion) {
         hay_errores = 1;
         return;
     }
-    completar_verdaderos(condicion, proximo());
+    completar_verdaderos(condicion, nro_terceto());
     condicion.nverdadero = 0;
     pila_cond[tope_saltos] = condicion;
-    pila_bi[tope_saltos] = -1;
+    apilar_nro(-1);
     tope_saltos++;
 }
 
@@ -338,25 +338,29 @@ static void abrir_else(void) {
 
     if (tope_saltos <= 0)
         return;
-    salto = emitir(T_BI, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
-    completar_falsos(pila_cond[tope_saltos - 1], proximo());
+    desapilar();
+    salto = crear_terceto(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO);
+    completar_falsos(pila_cond[tope_saltos - 1], nro_terceto());
     pila_cond[tope_saltos - 1].nfalso = 0;
-    pila_bi[tope_saltos - 1] = salto;
+    apilar_nro(salto);
 }
 
 static void cerrar_if(void) {
+    int marca;
+
     if (tope_saltos <= 0)
         return;
     tope_saltos--;
-    if (pila_bi[tope_saltos] >= 0)
-        completar_op1(pila_bi[tope_saltos], proximo());
+    marca = desapilar();
+    if (marca >= 0)
+        completar(marca, nro_terceto());
     else
-        completar_falsos(pila_cond[tope_saltos], proximo());
+        completar_falsos(pila_cond[tope_saltos], nro_terceto());
 }
 
 /* until: la condición verdadera cae afuera. La falsa vuelve al cuerpo. */
 static void repetir_si_falso(Cond condicion, int inicio) {
-    completar_verdaderos(condicion, proximo());
+    completar_verdaderos(condicion, nro_terceto());
     completar_falsos(condicion, inicio);
 }
 
@@ -364,16 +368,16 @@ static void repetir_si_falso(Cond condicion, int inicio) {
 static int salto_entrada = -1;
 
 static void abrir_programa(void) {
-    salto_entrada = emitir(T_BI, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
+    salto_entrada = crear_terceto(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO);
 }
 
 static void comenzar_main(void) {
     funcion_actual = "main";
     if (salto_entrada >= 0)
-        completar_op1(salto_entrada, proximo());
+        completar(salto_entrada, nro_terceto());
 }
 
-#line 377 "src/parser/parser.tab.c"
+#line 381 "src/parser/parser.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -454,7 +458,7 @@ enum yysymbol_kind_t
   YYSYMBOL_fin_seleccion = 50,             /* fin_seleccion  */
   YYSYMBOL_51_4 = 51,                      /* $@4  */
   YYSYMBOL_iteracion = 52,                 /* iteracion  */
-  YYSYMBOL_53_5 = 53,                      /* @5  */
+  YYSYMBOL_53_5 = 53,                      /* $@5  */
   YYSYMBOL_bloque = 54,                    /* bloque  */
   YYSYMBOL_condiciones = 55,               /* condiciones  */
   YYSYMBOL_56_6 = 56,                      /* @6  */
@@ -853,12 +857,12 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   338,   338,   339,   342,   346,   347,   351,   350,   356,
-     355,   360,   363,   364,   367,   370,   371,   374,   375,   376,
-     377,   378,   379,   383,   387,   394,   396,   401,   400,   407,
-     406,   410,   415,   414,   420,   424,   423,   427,   430,   432,
-     436,   438,   440,   443,   445,   447,   450,   452,   454,   456,
-     460,   464,   465,   466,   467,   468,   469,   472,   473
+       0,   341,   341,   342,   345,   349,   350,   354,   353,   359,
+     358,   363,   366,   367,   370,   373,   374,   377,   378,   379,
+     380,   381,   382,   386,   390,   397,   399,   404,   403,   410,
+     409,   413,   418,   417,   423,   427,   426,   430,   433,   435,
+     439,   441,   443,   446,   448,   450,   453,   455,   457,   459,
+     463,   467,   468,   469,   470,   471,   472,   475,   476
 };
 #endif
 
@@ -883,8 +887,8 @@ static const char *const yytname[] =
   "lista_funciones", "definicion_funcion", "$@1", "funcion_main", "$@2",
   "cuerpo", "declaraciones", "declaracion", "lista_sentencias",
   "sentencia", "asignacion", "retorno", "salida", "seleccion", "$@3",
-  "fin_seleccion", "$@4", "iteracion", "@5", "bloque", "condiciones", "@6",
-  "condicion", "expresion", "termino", "factor", "invocacion",
+  "fin_seleccion", "$@4", "iteracion", "$@5", "bloque", "condiciones",
+  "@6", "condicion", "expresion", "termino", "factor", "invocacion",
   "op_comparacion", "op_logico", YY_NULLPTR
 };
 
@@ -1768,220 +1772,220 @@ yyreduce:
   switch (yyn)
     {
   case 4: /* entrada: %empty  */
-#line 343 "src/parser/parser.y"
+#line 346 "src/parser/parser.y"
                         { abrir_programa(); }
-#line 1774 "src/parser/parser.tab.c"
+#line 1778 "src/parser/parser.tab.c"
     break;
 
   case 7: /* $@1: %empty  */
-#line 351 "src/parser/parser.y"
+#line 354 "src/parser/parser.y"
                         { registrar_funcion((yyvsp[-3].indice_ts), (yyvsp[-1].indice_ts)); }
-#line 1780 "src/parser/parser.tab.c"
+#line 1784 "src/parser/parser.tab.c"
     break;
 
   case 9: /* $@2: %empty  */
-#line 356 "src/parser/parser.y"
+#line 359 "src/parser/parser.y"
                         { comenzar_main(); }
-#line 1786 "src/parser/parser.tab.c"
+#line 1790 "src/parser/parser.tab.c"
     break;
 
   case 22: /* sentencia: invocacion PUNTO_Y_COMA  */
-#line 380 "src/parser/parser.y"
+#line 383 "src/parser/parser.y"
                         { (void)(yyvsp[-1].ref); }
-#line 1792 "src/parser/parser.tab.c"
+#line 1796 "src/parser/parser.tab.c"
     break;
 
   case 23: /* asignacion: ID OP_ASIG expresion PUNTO_Y_COMA  */
-#line 384 "src/parser/parser.y"
-                        { emitir(T_ASIG, ref_ts((yyvsp[-3].indice_ts)), (yyvsp[-1].ref), TIPO_NINGUNO); }
-#line 1798 "src/parser/parser.tab.c"
+#line 387 "src/parser/parser.y"
+                        { colocar(T_ASIG, apilar((yyvsp[-3].indice_ts)), (yyvsp[-1].ref), TIPO_NINGUNO); }
+#line 1802 "src/parser/parser.tab.c"
     break;
 
   case 24: /* retorno: RETURN expresion PUNTO_Y_COMA  */
-#line 388 "src/parser/parser.y"
+#line 391 "src/parser/parser.y"
                         {
-                            emitir(T_ASIG, ref_ts(celda_retorno_de(funcion_actual)), (yyvsp[-1].ref), TIPO_NINGUNO);
-                            emitir(T_RET, ref_vacia(), ref_vacia(), TIPO_NINGUNO);
+                            colocar(T_ASIG, apilar(celda_retorno_de(funcion_actual)), (yyvsp[-1].ref), TIPO_NINGUNO);
+                            colocar(T_RET, sin_operando(), sin_operando(), TIPO_NINGUNO);
                         }
-#line 1807 "src/parser/parser.tab.c"
+#line 1811 "src/parser/parser.tab.c"
     break;
 
   case 25: /* salida: WRITE PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA  */
-#line 395 "src/parser/parser.y"
-                        { emitir(T_WRITE, (yyvsp[-2].ref), ref_vacia(), TIPO_NINGUNO); }
-#line 1813 "src/parser/parser.tab.c"
+#line 398 "src/parser/parser.y"
+                        { colocar(T_WRITE, (yyvsp[-2].ref), sin_operando(), TIPO_NINGUNO); }
+#line 1817 "src/parser/parser.tab.c"
     break;
 
   case 26: /* salida: WRITE PAR_ABRE CADENA PAR_CIERRA PUNTO_Y_COMA  */
-#line 397 "src/parser/parser.y"
-                        { emitir(T_WRITE_STR, ref_ts((yyvsp[-2].indice_ts)), ref_vacia(), TIPO_NINGUNO); }
-#line 1819 "src/parser/parser.tab.c"
+#line 400 "src/parser/parser.y"
+                        { colocar(T_WRITE_STR, apilar((yyvsp[-2].indice_ts)), sin_operando(), TIPO_NINGUNO); }
+#line 1823 "src/parser/parser.tab.c"
     break;
 
   case 27: /* $@3: %empty  */
-#line 401 "src/parser/parser.y"
+#line 404 "src/parser/parser.y"
                         { abrir_if((yyvsp[-1].cond)); }
-#line 1825 "src/parser/parser.tab.c"
+#line 1829 "src/parser/parser.tab.c"
     break;
 
   case 29: /* $@4: %empty  */
-#line 407 "src/parser/parser.y"
+#line 410 "src/parser/parser.y"
                         { abrir_else(); }
-#line 1831 "src/parser/parser.tab.c"
+#line 1835 "src/parser/parser.tab.c"
     break;
 
   case 30: /* fin_seleccion: ELSE $@4 bloque  */
-#line 409 "src/parser/parser.y"
+#line 412 "src/parser/parser.y"
                         { cerrar_if(); }
-#line 1837 "src/parser/parser.tab.c"
+#line 1841 "src/parser/parser.tab.c"
     break;
 
   case 31: /* fin_seleccion: %empty  */
-#line 411 "src/parser/parser.y"
+#line 414 "src/parser/parser.y"
                         { cerrar_if(); }
-#line 1843 "src/parser/parser.tab.c"
+#line 1847 "src/parser/parser.tab.c"
     break;
 
-  case 32: /* @5: %empty  */
-#line 415 "src/parser/parser.y"
-                        { (yyval.indice) = proximo(); }
-#line 1849 "src/parser/parser.tab.c"
+  case 32: /* $@5: %empty  */
+#line 418 "src/parser/parser.y"
+                        { apilar_nro(nro_terceto()); }
+#line 1853 "src/parser/parser.tab.c"
     break;
 
-  case 33: /* iteracion: LOOP @5 bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA  */
-#line 417 "src/parser/parser.y"
-                        { repetir_si_falso((yyvsp[-2].cond), (yyvsp[-6].indice)); }
-#line 1855 "src/parser/parser.tab.c"
+  case 33: /* iteracion: LOOP $@5 bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA  */
+#line 420 "src/parser/parser.y"
+                        { repetir_si_falso((yyvsp[-2].cond), desapilar()); }
+#line 1859 "src/parser/parser.tab.c"
     break;
 
   case 35: /* @6: %empty  */
-#line 424 "src/parser/parser.y"
+#line 427 "src/parser/parser.y"
                         { (yyval.cond) = preparar_logico((yyvsp[-1].cond), (yyvsp[0].operador)); }
-#line 1861 "src/parser/parser.tab.c"
+#line 1865 "src/parser/parser.tab.c"
     break;
 
   case 36: /* condiciones: condiciones op_logico @6 condicion  */
-#line 426 "src/parser/parser.y"
+#line 429 "src/parser/parser.y"
                         { (yyval.cond) = combinar_logico((yyvsp[-1].cond), (yyvsp[-2].operador), (yyvsp[0].cond)); }
-#line 1867 "src/parser/parser.tab.c"
+#line 1871 "src/parser/parser.tab.c"
     break;
 
   case 38: /* condicion: expresion op_comparacion expresion  */
-#line 431 "src/parser/parser.y"
+#line 434 "src/parser/parser.y"
                         { (yyval.cond) = condicion_simple((yyvsp[-1].operador), (yyvsp[-2].ref), (yyvsp[0].ref)); }
-#line 1873 "src/parser/parser.tab.c"
+#line 1877 "src/parser/parser.tab.c"
     break;
 
   case 39: /* condicion: PAR_ABRE condiciones PAR_CIERRA  */
-#line 433 "src/parser/parser.y"
+#line 436 "src/parser/parser.y"
                         { (yyval.cond) = (yyvsp[-1].cond); }
-#line 1879 "src/parser/parser.tab.c"
+#line 1883 "src/parser/parser.tab.c"
     break;
 
   case 40: /* expresion: expresion OP_SUMA termino  */
-#line 437 "src/parser/parser.y"
-                        { (yyval.ref) = ref_ter(emitir(T_SUMA, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
-#line 1885 "src/parser/parser.tab.c"
+#line 440 "src/parser/parser.y"
+                        { (yyval.ref) = apilar_ti(colocar(T_SUMA, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
+#line 1889 "src/parser/parser.tab.c"
     break;
 
   case 41: /* expresion: expresion OP_RESTA termino  */
-#line 439 "src/parser/parser.y"
-                        { (yyval.ref) = ref_ter(emitir(T_RESTA, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
-#line 1891 "src/parser/parser.tab.c"
+#line 442 "src/parser/parser.y"
+                        { (yyval.ref) = apilar_ti(colocar(T_RESTA, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
+#line 1895 "src/parser/parser.tab.c"
     break;
 
   case 43: /* termino: termino OP_MUL factor  */
-#line 444 "src/parser/parser.y"
-                        { (yyval.ref) = ref_ter(emitir(T_MUL, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
-#line 1897 "src/parser/parser.tab.c"
+#line 447 "src/parser/parser.y"
+                        { (yyval.ref) = apilar_ti(colocar(T_MUL, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
+#line 1901 "src/parser/parser.tab.c"
     break;
 
   case 44: /* termino: termino OP_DIV factor  */
-#line 446 "src/parser/parser.y"
-                        { (yyval.ref) = ref_ter(emitir(T_DIV, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
-#line 1903 "src/parser/parser.tab.c"
+#line 449 "src/parser/parser.y"
+                        { (yyval.ref) = apilar_ti(colocar(T_DIV, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
+#line 1907 "src/parser/parser.tab.c"
     break;
 
   case 46: /* factor: ID  */
-#line 451 "src/parser/parser.y"
-                        { (yyval.ref) = ref_ts((yyvsp[0].indice_ts)); }
-#line 1909 "src/parser/parser.tab.c"
+#line 454 "src/parser/parser.y"
+                        { (yyval.ref) = apilar((yyvsp[0].indice_ts)); }
+#line 1913 "src/parser/parser.tab.c"
     break;
 
   case 47: /* factor: CTE  */
-#line 453 "src/parser/parser.y"
-                        { (yyval.ref) = ref_ts((yyvsp[0].indice_ts)); }
-#line 1915 "src/parser/parser.tab.c"
+#line 456 "src/parser/parser.y"
+                        { (yyval.ref) = apilar((yyvsp[0].indice_ts)); }
+#line 1919 "src/parser/parser.tab.c"
     break;
 
   case 48: /* factor: invocacion  */
-#line 455 "src/parser/parser.y"
+#line 458 "src/parser/parser.y"
                         { (yyval.ref) = (yyvsp[0].ref); }
-#line 1921 "src/parser/parser.tab.c"
+#line 1925 "src/parser/parser.tab.c"
     break;
 
   case 49: /* factor: PAR_ABRE expresion PAR_CIERRA  */
-#line 457 "src/parser/parser.y"
+#line 460 "src/parser/parser.y"
                         { (yyval.ref) = (yyvsp[-1].ref); }
-#line 1927 "src/parser/parser.tab.c"
+#line 1931 "src/parser/parser.tab.c"
     break;
 
   case 50: /* invocacion: ID PAR_ABRE expresion PAR_CIERRA  */
-#line 461 "src/parser/parser.y"
+#line 464 "src/parser/parser.y"
                         { (yyval.ref) = emitir_llamada((yyvsp[-3].indice_ts), (yyvsp[-1].ref)); }
-#line 1933 "src/parser/parser.tab.c"
+#line 1937 "src/parser/parser.tab.c"
     break;
 
   case 51: /* op_comparacion: OP_MENOR  */
-#line 464 "src/parser/parser.y"
+#line 467 "src/parser/parser.y"
                                         { (yyval.operador) = T_MENOR; }
-#line 1939 "src/parser/parser.tab.c"
+#line 1943 "src/parser/parser.tab.c"
     break;
 
   case 52: /* op_comparacion: OP_MENOR_IGUAL  */
-#line 465 "src/parser/parser.y"
+#line 468 "src/parser/parser.y"
                                         { (yyval.operador) = T_MENOR_IGUAL; }
-#line 1945 "src/parser/parser.tab.c"
+#line 1949 "src/parser/parser.tab.c"
     break;
 
   case 53: /* op_comparacion: OP_MAYOR  */
-#line 466 "src/parser/parser.y"
+#line 469 "src/parser/parser.y"
                                         { (yyval.operador) = T_MAYOR; }
-#line 1951 "src/parser/parser.tab.c"
+#line 1955 "src/parser/parser.tab.c"
     break;
 
   case 54: /* op_comparacion: OP_MAYOR_IGUAL  */
-#line 467 "src/parser/parser.y"
+#line 470 "src/parser/parser.y"
                                         { (yyval.operador) = T_MAYOR_IGUAL; }
-#line 1957 "src/parser/parser.tab.c"
+#line 1961 "src/parser/parser.tab.c"
     break;
 
   case 55: /* op_comparacion: OP_IGUAL  */
-#line 468 "src/parser/parser.y"
+#line 471 "src/parser/parser.y"
                                         { (yyval.operador) = T_IGUAL; }
-#line 1963 "src/parser/parser.tab.c"
+#line 1967 "src/parser/parser.tab.c"
     break;
 
   case 56: /* op_comparacion: OP_DISTINTO  */
-#line 469 "src/parser/parser.y"
+#line 472 "src/parser/parser.y"
                                         { (yyval.operador) = T_DISTINTO; }
-#line 1969 "src/parser/parser.tab.c"
+#line 1973 "src/parser/parser.tab.c"
     break;
 
   case 57: /* op_logico: AND  */
-#line 472 "src/parser/parser.y"
+#line 475 "src/parser/parser.y"
                                         { (yyval.operador) = 1; }
-#line 1975 "src/parser/parser.tab.c"
+#line 1979 "src/parser/parser.tab.c"
     break;
 
   case 58: /* op_logico: OR  */
-#line 473 "src/parser/parser.y"
+#line 476 "src/parser/parser.y"
                                         { (yyval.operador) = 0; }
-#line 1981 "src/parser/parser.tab.c"
+#line 1985 "src/parser/parser.tab.c"
     break;
 
 
-#line 1985 "src/parser/parser.tab.c"
+#line 1989 "src/parser/parser.tab.c"
 
       default: break;
     }
@@ -2205,7 +2209,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 476 "src/parser/parser.y"
+#line 479 "src/parser/parser.y"
 
 
 int main(int argc, char **argv) {
