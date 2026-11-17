@@ -25,3 +25,4 @@
 | 09/11/2026 | Grupo | Cada reducción de la spec nombra la acción que ya está en `parser.y`. Los paréntesis copian `$2`, no `$1`. | Los comentarios del `%union` y de `Cond` quedan iguales a los de la spec.                            |
 | 09/11/2026 | Grupo | La generación usa los nombres: `apilar`, `colocar`, `crear_terceto`, `nro_terceto`, `completar`, `apilar_nro` y `desapilar`. | La lista de tercetos de los ocho correctos no cambia.                                                    |
 | 09/11/2026 | Grupo | La spec queda como el contrato del generador: terceto, operaciones y qué agrega cada reducción. |                                            |
+| 16/11/2026 | Grupo | Toda la lista se arma con `colocar`|

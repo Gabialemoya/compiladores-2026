@@ -108,24 +108,25 @@ extern int     cant_tercetos;
 
 ### 3.2 Operaciones — `tercetos.c`
 
-`colocar` y `crear_terceto` agregan un terceto al final de la lista y devuelven su índice. La línea guardada es `linea_anterior`. Si todavía no hay token anterior, usan `linea_actual`.
+Armar cada terceto con `Colocar` y deja el operando en la pila con `Apilar`. Acá hay una sola función que agrega un terceto: `colocar`. Devuelve el índice y avanza el contador. La línea guardada es `linea_anterior`. Si todavía no hay token anterior, usa `linea_actual`.
 
-| Firma | Efecto |
-| --- | --- |
-| `Referencia apilar(int ptr)` | Referencia `REF_TS` al índice `ptr` de la tabla de símbolos |
-| `Referencia apilar_ti(int ti)` | Referencia `REF_TER` al terceto `ti` |
-| `Referencia sin_operando(void)` | Referencia `REF_VACIO` |
-| `int colocar(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo)` | Agrega un terceto de operación, asignación, salida o retorno |
-| `int crear_terceto(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo)` | Agrega un terceto de salto o de llamada |
-| `int nro_terceto(void)` | Índice que tendrá el próximo terceto. No lo agrega |
-| `void completar(int t, int destino)` | Escribe `REF_DIR` con `destino`. En un `T_BF` lo escribe en `op2`. En un `T_BI` o un `T_CALL`, en `op1` |
-| `void apilar_nro(int nro)` | Apila un número de terceto |
-| `int desapilar(void)` | Saca el último número apilado. Con la pila vacía devuelve `-1` |
-| `void imprimir_tercetos(const char *ruta)` | Escribe la lista en `ruta` y crea el directorio `out/` si no existe |
+| En el apunte | Firma | Efecto |
+| --- | --- | --- |
+| `Apilar(id.ptr)` o `Apilar(cte.ptr)` | `Referencia apilar(int ptr)` | Referencia `REF_TS` al índice `ptr` de la tabla de símbolos |
+| `Apilar(Ti)` | `Referencia apilar_ti(int ti)` | Referencia `REF_TER` al terceto `ti` |
+| operando vacío | `Referencia sin_operando(void)` | Referencia `REF_VACIO` |
+| `Colocar(op, Segundo, Tope); i := i+1` | `int colocar(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo)` | Agrega el terceto. Vale para aritmética, asignación, comparación, salto, salida, llamada y retorno |
+| el `i` antes de incrementarlo | `int nro_terceto(void)` | Índice que tendrá el próximo terceto. No lo agrega |
+| — | `void completar(int t, int destino)` | Escribe `REF_DIR` con `destino`. En un `T_BF` lo escribe en `op2`. En un `T_BI` o un `T_CALL`, en `op1` |
+| — | `void apilar_nro(int nro)` | Apila un número de terceto para un `if` o un `loop`. No es la pila de operandos |
+| — | `int desapilar(void)` | Saca el último número apilado. Con la pila vacía devuelve `-1` |
+| — | `void imprimir_tercetos(const char *ruta)` | Escribe la lista en `ruta` y crea el directorio `out/` si no existe |
+
+`apilar` y `apilar_ti` son las dos formas de `Apilar`: un índice de la tabla o un índice de terceto. En C la clase de la referencia tiene que quedar escrita. `Segundo` y `Tope` del apunte llegan como `op1` y `op2`, porque la pila de operandos es el valor semántico de Bison.
 
 `completar` no modifica un índice fuera de la lista. `apilar_nro` admite 64 números. Si se llena, informa `Linea N: Error: pila de saltos llena` y levanta `hay_errores`.
 
-Si `colocar` o `crear_terceto` supera `MAX_TERCETOS`, informa `Linea N: Error: lista de tercetos llena`, levanta `hay_errores` y devuelve `-1`.
+Si `colocar` supera `MAX_TERCETOS`, informa `Linea N: Error: lista de tercetos llena`, levanta `hay_errores` y devuelve `-1`.
 
 ### 3.3 Estado en `parser.y`
 
@@ -202,7 +203,7 @@ Listas, `cuerpo`, `bloque`, `declaraciones` y `declaracion` no apilan un operand
 
 | Regla | Generación |
 | --- | --- |
-| `entrada` vacía | `salto_entrada = crear_terceto(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO)`. Es el terceto 0 |
+| `entrada` vacía | `salto_entrada = colocar(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO)`. Es el terceto 0 |
 | Encabezado `ID ( ID )`, antes del cuerpo | `funcion_actual` pasa a ser ese nombre. Crea `@ret_<nombre>` en la tabla, de tipo racional. La entrada de la función es `nro_terceto()`. La registra junto con su parámetro y completa las llamadas pendientes de ese nombre |
 | Encabezado `MAIN ( )`, antes del cuerpo | `funcion_actual = "main"`. `completar(salto_entrada, nro_terceto())` |
 
@@ -255,7 +256,7 @@ Las funciones quedan delante de `main`, en el orden del fuente. Solo se entra a 
 | Orden | Función ya registrada | Función todavía no vista |
 | --- | --- | --- |
 | 1 | `colocar(T_ASIG, apilar(parámetro), argumento, TIPO_NINGUNO)` | `colocar(T_ASIG, sin_operando(), argumento, TIPO_NINGUNO)` |
-| 2 | `crear_terceto(T_CALL, sin_operando(), sin_operando(), TIPO_NINGUNO)` y `completar(call, entrada)` | `crear_terceto(T_CALL, sin_operando(), sin_operando(), TIPO_NINGUNO)` |
+| 2 | `colocar(T_CALL, sin_operando(), sin_operando(), TIPO_NINGUNO)` y `completar(call, entrada)` | `colocar(T_CALL, sin_operando(), sin_operando(), TIPO_NINGUNO)` |
 | 3 | `colocar(T_ASIG, apilar(@tmpN), apilar(@ret_), TIPO_NINGUNO)` | `colocar(T_ASIG, apilar(@tmpN), sin_operando(), TIPO_NINGUNO)` |
 
 El segundo caso anota los tres índices en `pendientes`. El encabezado de §6.1 los completa. Una llamada que está dentro del cuerpo ya tiene la entrada, porque el encabezado se registró antes.
@@ -265,7 +266,7 @@ El segundo caso anota los tres índices en `pendientes`. El encabezado de §6.1 
 `condicion : expresion op_comparacion expresion` agrega dos tercetos:
 
 1. `cmp = colocar(op, izquierda, derecha, TIPO_ENTERO)`.
-2. `crear_terceto(T_BF, apilar_ti(cmp), sin_operando(), TIPO_NINGUNO)`.
+2. `colocar(T_BF, apilar_ti(cmp), sin_operando(), TIPO_NINGUNO)`.
 
 Apila un `Cond` con ese `BF` en `falso`. `verdadero` queda vacío: si la comparación es verdadera, la ejecución sigue en el terceto siguiente.
 
@@ -278,7 +279,7 @@ Apila un `Cond` con ese `BF` en `falso`. `verdadero` queda vacío: si la compara
 | Operador | Antes de la derecha |
 | --- | --- |
 | `and` | `completar` de cada `BI` verdadero de la izquierda con `nro_terceto()`, y vacía esa lista. Los `BF` falsos siguen abiertos |
-| `or` | `crear_terceto(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO)`, lo agrega a los verdaderos, `completar` de los `BF` falsos de la izquierda con `nro_terceto()` y vacía esa lista |
+| `or` | `colocar(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO)`, lo agrega a los verdaderos, `completar` de los `BF` falsos de la izquierda con `nro_terceto()` y vacía esa lista |
 
 Al juntar:
 
@@ -296,7 +297,7 @@ En un `and`, si la izquierda es falsa el `BF` no entra en la derecha. En un `or`
 | Momento | Generación |
 | --- | --- |
 | Después de `if ( condiciones )`, antes del bloque | `completar` de los verdaderos con `nro_terceto()`. `apilar_nro(-1)`. Guarda el `Cond` con los falsos abiertos |
-| Al ver `else`, antes de su bloque | `desapilar` de la marca `-1`. `crear_terceto(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO)`. `completar` de los falsos con `nro_terceto()`. `apilar_nro` del índice de ese `BI` |
+| Al ver `else`, antes de su bloque | `desapilar` de la marca `-1`. `colocar(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO)`. `completar` de los falsos con `nro_terceto()`. `apilar_nro` del índice de ese `BI` |
 | Al cerrar el `if` con `else` | `desapilar` del `BI` y `completar(bi, nro_terceto())` |
 | Al cerrar el `if` sin `else` | `desapilar` devuelve `-1`. `completar` de los falsos con `nro_terceto()` |
 

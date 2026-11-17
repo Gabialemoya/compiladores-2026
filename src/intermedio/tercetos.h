@@ -48,7 +48,6 @@ Referencia apilar_ti(int ti);
 Referencia sin_operando(void);
 
 int colocar(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo);
-int crear_terceto(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo);
 
 int nro_terceto(void);
 void completar(int t, int destino);

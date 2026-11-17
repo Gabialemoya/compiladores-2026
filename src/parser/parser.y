@@ -126,14 +126,14 @@ static Referencia emitir_llamada(int nombre, Referencia argumento) {
     if (pos >= 0) {
         celda = celda_retorno_de(ts[nombre].nombre);
         colocar(T_ASIG, apilar(funciones[pos].parametro), argumento, TIPO_NINGUNO);
-        completar(crear_terceto(T_CALL, sin_operando(), sin_operando(), TIPO_NINGUNO),
+        completar(colocar(T_CALL, sin_operando(), sin_operando(), TIPO_NINGUNO),
                   funciones[pos].entrada);
         colocar(T_ASIG, apilar(temporal), apilar(celda), TIPO_NINGUNO);
         return apilar(temporal);
     }
 
     asig_arg = colocar(T_ASIG, sin_operando(), argumento, TIPO_NINGUNO);
-    call = crear_terceto(T_CALL, sin_operando(), sin_operando(), TIPO_NINGUNO);
+    call = colocar(T_CALL, sin_operando(), sin_operando(), TIPO_NINGUNO);
     asig_ret = colocar(T_ASIG, apilar(temporal), sin_operando(), TIPO_NINGUNO);
 
     if (cant_pendientes >= MAX_PENDIENTES) {
@@ -192,7 +192,7 @@ static void completar_verdaderos(Cond c, int destino) {
 
 static Cond condicion_simple(int operador, Referencia izq, Referencia der) {
     int cmp = colocar((OperadorTerceto)operador, izq, der, TIPO_ENTERO);
-    int salto = crear_terceto(T_BF, apilar_ti(cmp), sin_operando(), TIPO_NINGUNO);
+    int salto = colocar(T_BF, apilar_ti(cmp), sin_operando(), TIPO_NINGUNO);
     return agregar_salto(cond_vacia(), 0, salto);
 }
 
@@ -206,7 +206,7 @@ static Cond preparar_and(Cond izq) {
 /* or: si la izquierda es verdadera, saltear la derecha.
    Si es falsa, los BF quedan apuntando al inicio de la derecha. */
 static Cond preparar_or(Cond izq) {
-    int salto = crear_terceto(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO);
+    int salto = colocar(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO);
 
     izq = agregar_salto(izq, 1, salto);
     completar_falsos(izq, nro_terceto());
@@ -269,7 +269,7 @@ static void abrir_else(void) {
     if (tope_saltos <= 0)
         return;
     desapilar();
-    salto = crear_terceto(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO);
+    salto = colocar(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO);
     completar_falsos(pila_cond[tope_saltos - 1], nro_terceto());
     pila_cond[tope_saltos - 1].nfalso = 0;
     apilar_nro(salto);
@@ -298,7 +298,7 @@ static void repetir_si_falso(Cond condicion, int inicio) {
 static int salto_entrada = -1;
 
 static void abrir_programa(void) {
-    salto_entrada = crear_terceto(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO);
+    salto_entrada = colocar(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO);
 }
 
 static void comenzar_main(void) {
@@ -490,7 +490,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    yydebug = 1;
+    //yydebug = 1;
     yyparse();
     fclose(fuente);
 

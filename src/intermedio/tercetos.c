@@ -36,7 +36,7 @@ Referencia sin_operando(void) {
     return ref_nueva(REF_VACIO, 0);
 }
 
-static int crear(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo) {
+int colocar(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo) {
     Terceto *t;
     int linea = linea_anterior > 0 ? linea_anterior : linea_actual;
 
@@ -53,14 +53,6 @@ static int crear(OperadorTerceto op, Referencia op1, Referencia op2, TipoResulta
     t->tipo = tipo;
     t->linea = linea;
     return cant_tercetos++;
-}
-
-int colocar(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo) {
-    return crear(op, op1, op2, tipo);
-}
-
-int crear_terceto(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo) {
-    return crear(op, op1, op2, tipo);
 }
 
 int nro_terceto(void) {
