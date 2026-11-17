@@ -14,6 +14,8 @@ El desarrollo sigue **Spec-Driven Development**: la lógica del compilador se es
 | 03-analizador-lexico (etapa 1 listado) | Grupo     | 20/09/2026 |
 | 03-analizador-lexico (etapa 2 lexer)   | Grupo     | 28/09/2026 |
 | 04-analizador-sintactico               | Grupo     | 05/10/2026 |
+| 05-codigo-intermedio                   | Grupo     | 26/10/2026 |
+| 06-generacion-assembler                | Grupo     | 16/11/2026 |
 
 ## Modelos usados
 
@@ -24,6 +26,7 @@ El desarrollo sigue **Spec-Driven Development**: la lógica del compilador se es
 | 02-tabla-simbolos    | Cursor Grok 4.6 | Definición del contrato de la tabla de simbolos                                                                                                          
 | 03-analizador-lexico | Cursor Grok 4.6 | Etapa 1 listado de tokens                                                    |
 | 04-analizador-sintactico | Antigravity | Generar parser.y y compilador                                                |
+| 06-generacion-assembler  | Cursor Grok 4.7 | Spec de la traducción de tercetos a NASM                                     |
 
 
 

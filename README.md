@@ -131,7 +131,7 @@ Además de la batería obligatoria indicada en las Consignas Generales, deben en
 - **Lenguaje de implementación:** C
 - **Analizador léxico:** manual (etapa 1: listado de tokens; etapa 2: `yylex`), tablas según `specs/01-diseno` y `specs/03-analizador-lexico`
 - **Analizador sintáctico:** Bison 
-- **Arquitectura destino:** —
+- **Arquitectura destino:** NASM, x86 de 32 bits, objeto win32, enlace con gcc (`specs/06-generacion-assembler`)
 
 
 
