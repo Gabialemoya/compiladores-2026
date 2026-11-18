@@ -11,7 +11,7 @@ Traduce el programa fuente a una lista de tercetos mientras Bison reduce. Cada r
 
 Durante `yyparse`, las reducciones de §6 apilan un operando, agregan un terceto, completan un salto, o dejan pasar el valor que ya está en la pila. Al terminar `yyparse`, haya errores o no, `main` escribe `out/tercetos.txt`.
 
-Queda fuera de esta etapa la traducción de cada terceto a assembler y los controles semánticos E6, E7 y E9.
+Queda fuera de esta etapa la traducción de cada terceto a assembler.
 
 ---
 
@@ -138,6 +138,7 @@ Si `colocar` supera `MAX_TERCETOS`, informa `Linea N: Error: lista de tercetos l
 | `cant_tmp` | Próximo número de `@tmpN` |
 | `salto_entrada` | Índice del `BI` inicial |
 | `pila_cond[]` | Hasta 64 `if` anidados. Cada nivel guarda el `Cond` con los `BF` abiertos |
+| `declarada[]` | Un entero por entrada de la tabla, tamaño `MAX_TS`. `1` si ese `ID` ya se declaró |
 
 La pila de `apilar_nro` guarda, para cada `if`, el índice de su `BI` o `-1` si ese `if` todavía no tiene `else`. También guarda el índice de inicio de cada `loop`.
 
@@ -180,7 +181,7 @@ Si la alternativa no tiene acción y el símbolo de la izquierda usa el mismo ca
 
 ## 5. Reglas que no agregan un terceto
 
-Listas, `cuerpo`, `bloque`, `declaraciones` y `declaracion` no apilan un operando nuevo ni agregan un terceto. `var` no agrega la inicialización en `0/1` de R3: ese valor queda para la memoria estática.
+Listas, `cuerpo`, `bloque`, `declaraciones` y `declaracion` no apilan un operando nuevo ni agregan un terceto. `declaracion` marca el `ID` (§6.9). `var` no agrega la inicialización en `0/1` de R3: ese valor queda para la memoria estática.
 
 `op_comparacion` apila el operador y no agrega terceto:
 
@@ -204,7 +205,7 @@ Listas, `cuerpo`, `bloque`, `declaraciones` y `declaracion` no apilan un operand
 | Regla | Generación |
 | --- | --- |
 | `entrada` vacía | `salto_entrada = colocar(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO)`. Es el terceto 0 |
-| Encabezado `ID ( ID )`, antes del cuerpo | `funcion_actual` pasa a ser ese nombre. Crea `@ret_<nombre>` en la tabla, de tipo racional. La entrada de la función es `nro_terceto()`. La registra junto con su parámetro y completa las llamadas pendientes de ese nombre |
+| Encabezado `ID ( ID )`, antes del cuerpo | `funcion_actual` pasa a ser ese nombre. Crea `@ret_<nombre>` en la tabla, de tipo racional. La entrada de la función es `nro_terceto()`. La registra junto con su parámetro, declara ese parámetro (§6.9) y completa las llamadas pendientes de ese nombre |
 | Encabezado `MAIN ( )`, antes del cuerpo | `funcion_actual = "main"`. `completar(salto_entrada, nro_terceto())` |
 
 `agregar_ts` devuelve la misma entrada si `@ret_<nombre>` ya estaba. El encabezado de una función y su `return` comparten esa celda. En `main` la celda se crea en el `return`. Si `main` no tiene `return`, la celda no se crea.
@@ -229,7 +230,7 @@ Las funciones quedan delante de `main`, en el orden del fuente. Solo se entra a 
 | `termino : termino * factor` | `colocar(T_MUL, $1, $3, TIPO_RACIONAL)` | `apilar_ti` |
 | `termino : termino / factor` | `colocar(T_DIV, $1, $3, TIPO_RACIONAL)` | `apilar_ti` |
 | `termino : factor` | nada | la referencia del factor |
-| `factor : ID` | nada | `apilar($1)` |
+| `factor : ID` | nada. Si el `ID` no está declarado, E6 (§6.9) | `apilar($1)` |
 | `factor : CTE` | nada | `apilar($1)` |
 | `factor : ( expresion )` | nada | `$$ = $2` |
 | `factor : invocacion` | nada | `$$ = $1` |
@@ -240,7 +241,7 @@ Las funciones quedan delante de `main`, en el orden del fuente. Solo se entra a 
 
 | Regla | Generación |
 | --- | --- |
-| `ID = expresion ;` | `colocar(T_ASIG, apilar($1), $3, TIPO_NINGUNO)` |
+| `ID = expresion ;` | Si el `ID` no está declarado, E6 (§6.9). `colocar(T_ASIG, apilar($1), $3, TIPO_NINGUNO)` |
 | `write ( expresion ) ;` | `colocar(T_WRITE, $3, sin_operando(), TIPO_NINGUNO)` |
 | `write ( cadena ) ;` | `colocar(T_WRITE_STR, apilar($3), sin_operando(), TIPO_NINGUNO)` |
 | `return expresion ;` | `colocar(T_ASIG, apilar(@ret_<funcion_actual>), $2, TIPO_NINGUNO)` y después `colocar(T_RET, sin_operando(), sin_operando(), TIPO_NINGUNO)` |
@@ -251,7 +252,7 @@ Las funciones quedan delante de `main`, en el orden del fuente. Solo se entra a 
 
 ### 6.4 Invocación
 
-`invocacion : ID ( expresion )` crea `@tmpN` en la tabla, de tipo racional, y apila `apilar` de esa celda. `@ret_<funcion>` es una sola celda: el temporal conserva el retorno antes de otra llamada a la misma función. El argumento se traduce al reducir `expresion`, antes de estos tres tercetos.
+`invocacion : ID ( expresion )` crea `@tmpN` en la tabla, de tipo racional, y apila `apilar` de esa celda. `@ret_<funcion>` es una sola celda: el temporal conserva el retorno antes de otra llamada a la misma función. El argumento se traduce al reducir `expresion`, antes de estos tres tercetos. Si el nombre del `ID` es `funcion_actual`, informa E9 (§6.9) y la llamada se emite igual.
 
 | Orden | Función ya registrada | Función todavía no vista |
 | --- | --- | --- |
@@ -314,6 +315,22 @@ El cuerpo se ejecuta y después se evalúa la condición. Si es falsa, la ejecuc
 
 El `BF` lo agrega la comparación. `until` le escribe el inicio del cuerpo. Un `loop` anidado apila su propio inicio. Esa pila es la misma de §3.2: un `if` interior desapila su marca antes de que el `until` exterior desapile el inicio.
 
+### 6.9 Controles E6, E7 y E9
+
+R1, R2 y R7 están en `01-diseno` §11. El error de cada una, en §12. El léxico inserta cada `ID` la primera vez que aparece: eso no lo declara. Un `ID` queda declarado al reducir `var ID ;` o al ser el parámetro del encabezado `ID ( ID )`. El alcance es el único global de D11: la marca vale para todo el programa. El nombre de la función no se declara como variable. `@ret_`, `@tmpN`, las constantes y las cadenas tampoco.
+
+La línea del mensaje es `linea_anterior`. Si todavía no hay token anterior, es `linea_actual`. El mismo criterio que `colocar`. Ninguno de estos errores aborta el parseo: se levanta `hay_errores` y la reducción sigue. El terceto que esa reducción iba a agregar se agrega igual.
+
+| Regla | Cuándo | Mensaje |
+| --- | --- | --- |
+| R2 / E7 | `var ID`, o el parámetro, y ese índice ya estaba declarado | `Linea N: Error semantico E7: variable redeclarada` |
+| R1 / E6 | `factor : ID`, o el lado izquierdo de `ID = expresion`, y ese índice no está declarado | `Linea N: Error semantico E6: variable no declarada` |
+| R7 / E9 | `invocacion : ID ( expresion )` y el nombre de ese `ID` es `funcion_actual` | `Linea N: Error semantico E9: recursion directa` |
+
+Una invocación no es un uso de variable: no dispara E6. Una llamada a otra función, o a una función que todavía no se vio, no es E9. E9 es solo la llamada directa a la función cuyo cuerpo se está traduciendo.
+
+`em1_declaracion` informa E7 en el segundo `var a` y E6 en `write(b)`. `em2_recursion` informa E9 en `return f(x)`. Los dos terminan en compilación con errores.
+
 ---
 
 ## 7. Formato de `out/tercetos.txt`
@@ -359,7 +376,8 @@ gcc -Wall -Wextra -o compilador src/parser/parser.tab.c src/lexico/lexico.c src/
 - Bison genera el parser sin conflictos.
 - Compila sin warnings con `-Wall -Wextra`.
 - Los programas de `tests/correctos/` terminan en compilación exitosa.
-- Los programas con error léxico o sintáctico terminan en compilación con errores. `em1_declaracion` y `em2_recursion` compilan: E6, E7 y E9 están fuera de alcance.
+- Los programas con error léxico, sintáctico o semántico terminan en compilación con errores.
+- `em1_declaracion` informa E7 y E6. `em2_recursion` informa E9. En los dos la lista de tercetos se escribe igual.
 - Ningún `BF`, `BI` ni `CALL` queda con destino vacío. Un destino igual a la cantidad de tercetos es el lugar que sigue al último.
 
 `tests/correctos/p1_suma.rg` produce el listado de §7. `var` no aparece. El `BI` apunta a 1 porque no hay funciones delante de `main`. `c = a + b` agrega primero la `SUMA` y después el `ASIG` de `c` con `TER` de esa suma.

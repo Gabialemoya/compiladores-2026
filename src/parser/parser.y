@@ -4,6 +4,7 @@
 #include <string.h>
 #include "../intermedio/tercetos.h"
 #include "../lexico/lexico.h"
+#include "../assembler/assembler.h"
 
 /* Nombre de la función cuyo cuerpo se está traduciendo. */
 static const char *funcion_actual = "main";
@@ -29,6 +30,32 @@ static int cant_funciones = 0;
 static LlamadaPendiente pendientes[MAX_PENDIENTES];
 static int cant_pendientes = 0;
 static int cant_tmp = 0;
+static int declarada[MAX_TS];
+
+static int linea_reporte(void) {
+    return linea_anterior > 0 ? linea_anterior : linea_actual;
+}
+
+/* var y el parámetro declaran el ID. El léxico ya lo insertó: eso no cuenta. */
+static void declarar(int indice) {
+    if (indice < 0 || indice >= ts_size || indice >= MAX_TS)
+        return;
+    if (declarada[indice]) {
+        printf("Linea %d: Error semantico E7: variable redeclarada\n", linea_reporte());
+        hay_errores = 1;
+        return;
+    }
+    declarada[indice] = 1;
+}
+
+static void exigir_declarada(int indice) {
+    if (indice < 0 || indice >= ts_size || indice >= MAX_TS)
+        return;
+    if (!declarada[indice]) {
+        printf("Linea %d: Error semantico E6: variable no declarada\n", linea_reporte());
+        hay_errores = 1;
+    }
+}
 
 /* Celda estática del valor de retorno. T_RET no lleva operandos. */
 static int celda_retorno_de(const char *nombre) {
@@ -80,6 +107,7 @@ static void registrar_funcion(int nombre, int parametro) {
     if (nombre < 0 || nombre >= ts_size)
         return;
 
+    declarar(parametro);
     funcion_actual = ts[nombre].nombre;
     celda = celda_retorno_de(funcion_actual);
     entrada = nro_terceto();
@@ -121,6 +149,11 @@ static Referencia emitir_llamada(int nombre, Referencia argumento) {
     temporal = nuevo_temporal();
     if (nombre < 0 || nombre >= ts_size || temporal < 0)
         return sin_operando();
+
+    if (strcmp(ts[nombre].nombre, funcion_actual) == 0) {
+        printf("Linea %d: Error semantico E9: recursion directa\n", linea_reporte());
+        hay_errores = 1;
+    }
 
     pos = buscar_funcion(nombre);
     if (pos >= 0) {
@@ -339,7 +372,9 @@ static void comenzar_main(void) {
 %%
 
 programa            : entrada lista_funciones funcion_main
+                        { genera_cod_asm(); }
                     | entrada funcion_main
+                        { genera_cod_asm(); }
                     ;
 
 entrada             : %empty
@@ -368,6 +403,7 @@ declaraciones       : declaraciones declaracion
                     ;
 
 declaracion         : VAR ID PUNTO_Y_COMA
+                        { declarar($2); }
                     ;
 
 lista_sentencias    : lista_sentencias sentencia
@@ -384,7 +420,10 @@ sentencia           : asignacion
                     ;
 
 asignacion          : ID OP_ASIG expresion PUNTO_Y_COMA
-                        { colocar(T_ASIG, apilar($1), $3, TIPO_NINGUNO); }
+                        {
+                            exigir_declarada($1);
+                            colocar(T_ASIG, apilar($1), $3, TIPO_NINGUNO);
+                        }
                     ;
 
 retorno             : RETURN expresion PUNTO_Y_COMA
@@ -451,7 +490,10 @@ termino             : termino OP_MUL factor
                     ;
 
 factor              : ID
-                        { $$ = apilar($1); }
+                        {
+                            exigir_declarada($1);
+                            $$ = apilar($1);
+                        }
                     | CTE
                         { $$ = apilar($1); }
                     | invocacion

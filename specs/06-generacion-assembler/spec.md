@@ -13,8 +13,6 @@ Esta etapa fija la plataforma que `01-diseno` dejó abierta en D17: NASM, x86 de
 
 Al reducir el axioma, `genera_cod_asm` recorre la lista desde el primer terceto y escribe `out/programa.asm`. Cada terceto aporta su etiqueta y sus instrucciones. Las operaciones del racional viven en rutinas del mismo archivo, una sola vez.
 
-Quedan fuera de esta etapa los controles semánticos E6, E7 y E9.
-
 ---
 
 ## 2. Invocación
@@ -367,7 +365,7 @@ El compilador sigue pisando `out/tokens.txt`, `out/ts.txt` y `out/tercetos.txt`.
 - Los programas de `tests/correctos/` terminan en compilación exitosa y dejan `out/programa.asm`.
 - Ese archivo ensambla con NASM y enlaza con `gcc -m32`. El proceso sale con código `0`.
 - Los programas que no llegan al axioma no regeneran el assembler.
-- `em1_declaracion` y `em2_recursion` siguen compilando: E6, E7 y E9 están fuera de alcance. Como reducen `programa`, también dejan assembler.
+- `em1_declaracion` y `em2_recursion` reducen `programa` con `hay_errores` levantado. `genera_cod_asm` vuelve sin escribir y el `out/programa.asm` de una corrida anterior queda como estaba.
 
 Salida del ejecutable:
 

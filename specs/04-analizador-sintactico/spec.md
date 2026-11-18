@@ -53,7 +53,7 @@ Queda fuera de esta spec, y se especifica en etapas posteriores:
 - La estrategia de recuperación de errores.
 - La traducción a assembler.
 
-Los controles semánticos R1, R2 y R7 también quedan para después. Están definidos en `01-diseno` §11; el error de cada una, en §12:
+Los controles semánticos R1, R2 y R7 no los aplica esta etapa. Están definidos en `01-diseno` §11; el error de cada una, en §12. Los informa el código intermedio (`specs/05-codigo-intermedio` §6.9):
 
 
 | Regla | Definición                                          | Error |

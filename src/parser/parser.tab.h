@@ -45,7 +45,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 314 "src/parser/parser.y"
+#line 347 "src/parser/parser.y"
 
     #include "../intermedio/tercetos.h"
 
@@ -97,7 +97,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 318 "src/parser/parser.y"
+#line 351 "src/parser/parser.y"
 
     int        indice_ts;   /* lo carga yylex para ID, CTE, CADENA */
     Referencia ref;         /* operando apilado                    */

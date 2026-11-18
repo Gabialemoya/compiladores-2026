@@ -157,13 +157,13 @@ El argumento es la ruta de un fuente `.rg`. El listado de tokens se imprime en p
 
 ## Compilador
 
-Léxico, sintaxis y tercetos. Desde la raíz del repositorio.
+Léxico, sintaxis, tercetos y assembler. Desde la raíz del repositorio.
 
 ### Cómo compilar
 
 ```
 win_bison -d --report=all -o src/parser/parser.tab.c src/parser/parser.y
-gcc -Wall -Wextra -o compilador.exe src/parser/parser.tab.c src/lexico/lexico.c src/intermedio/tercetos.c
+gcc -Wall -Wextra -o compilador.exe src/parser/parser.tab.c src/lexico/lexico.c src/intermedio/tercetos.c src/assembler/assembler.c
 ```
 
 El primer comando regenera el parser. Hay que repetirlo cada vez que cambia `src/parser/parser.y`.
@@ -174,13 +174,22 @@ El primer comando regenera el parser. Hay que repetirlo cada vez que cambia `src
 .\compilador.exe tests\correctos\p1_suma.rg
 ```
 
-El argumento es la ruta de un fuente `.rg`. El veredicto sale por pantalla: `Compilacion EXITOSA` o `Compilacion completa con ERRORES`. Cada corrida pisa los mismos tres archivos:
+El argumento es la ruta de un fuente `.rg`. El veredicto sale por pantalla: `Compilacion EXITOSA` o `Compilacion completa con ERRORES`. Cada corrida pisa los mismos archivos:
 
 | Archivo | Contenido |
 | --- | --- |
 | `out/tokens.txt` | Tokens del fuente |
 | `out/ts.txt` | Tabla de símbolos |
 | `out/tercetos.txt` | Código intermedio |
+| `out/programa.asm` | Assembler, si la compilación llegó al axioma sin errores |
+
+Ensamblado y ejecución, con NASM y un gcc de 32 bits:
+
+```
+nasm -f win32 -o out\programa.obj out\programa.asm
+gcc -m32 -o out\programa.exe out\programa.obj
+.\out\programa.exe
+```
 
 Si `out/` no existe, el programa la crea. La traza de Bison sale por el error estándar. Para ver solo el veredicto:
 
@@ -231,7 +240,7 @@ Programas con error:
 | `el1_caracter.rg` | Error léxico E1: un carácter fuera del alfabeto |
 | `el2_constante.rg` | Error léxico E2 y error sintáctico E5 en la misma línea |
 | `es1_sentencia.rg` | Error sintáctico E5: falta el `;` de la asignación |
-| `em1_declaracion.rg` | Variable repetida y uso de una no declarada. E6 y E7 todavía no se informan |
-| `em2_recursion.rg` | Llamada recursiva directa. E9 todavía no se informa |
+| `em1_declaracion.rg` | E7 en el segundo `var a` y E6 en `write(b)` |
+| `em2_recursion.rg` | E9 en `return f(x)`: llamada recursiva directa |
 
-Los dos últimos compilan como exitosos: esos controles semánticos están fuera de la etapa de tercetos.
+Esos dos terminan en compilación con errores. Reducen `programa`, pero `genera_cod_asm` no reescribe `out/programa.asm`.

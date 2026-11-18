@@ -74,6 +74,7 @@
 #include <string.h>
 #include "../intermedio/tercetos.h"
 #include "../lexico/lexico.h"
+#include "../assembler/assembler.h"
 
 /* Nombre de la función cuyo cuerpo se está traduciendo. */
 static const char *funcion_actual = "main";
@@ -99,6 +100,32 @@ static int cant_funciones = 0;
 static LlamadaPendiente pendientes[MAX_PENDIENTES];
 static int cant_pendientes = 0;
 static int cant_tmp = 0;
+static int declarada[MAX_TS];
+
+static int linea_reporte(void) {
+    return linea_anterior > 0 ? linea_anterior : linea_actual;
+}
+
+/* var y el parámetro declaran el ID. El léxico ya lo insertó: eso no cuenta. */
+static void declarar(int indice) {
+    if (indice < 0 || indice >= ts_size || indice >= MAX_TS)
+        return;
+    if (declarada[indice]) {
+        printf("Linea %d: Error semantico E7: variable redeclarada\n", linea_reporte());
+        hay_errores = 1;
+        return;
+    }
+    declarada[indice] = 1;
+}
+
+static void exigir_declarada(int indice) {
+    if (indice < 0 || indice >= ts_size || indice >= MAX_TS)
+        return;
+    if (!declarada[indice]) {
+        printf("Linea %d: Error semantico E6: variable no declarada\n", linea_reporte());
+        hay_errores = 1;
+    }
+}
 
 /* Celda estática del valor de retorno. T_RET no lleva operandos. */
 static int celda_retorno_de(const char *nombre) {
@@ -150,6 +177,7 @@ static void registrar_funcion(int nombre, int parametro) {
     if (nombre < 0 || nombre >= ts_size)
         return;
 
+    declarar(parametro);
     funcion_actual = ts[nombre].nombre;
     celda = celda_retorno_de(funcion_actual);
     entrada = nro_terceto();
@@ -191,6 +219,11 @@ static Referencia emitir_llamada(int nombre, Referencia argumento) {
     temporal = nuevo_temporal();
     if (nombre < 0 || nombre >= ts_size || temporal < 0)
         return sin_operando();
+
+    if (strcmp(ts[nombre].nombre, funcion_actual) == 0) {
+        printf("Linea %d: Error semantico E9: recursion directa\n", linea_reporte());
+        hay_errores = 1;
+    }
 
     pos = buscar_funcion(nombre);
     if (pos >= 0) {
@@ -377,7 +410,7 @@ static void comenzar_main(void) {
         completar(salto_entrada, nro_terceto());
 }
 
-#line 381 "src/parser/parser.tab.c"
+#line 414 "src/parser/parser.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -857,12 +890,12 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   341,   341,   342,   345,   349,   350,   354,   353,   359,
-     358,   363,   366,   367,   370,   373,   374,   377,   378,   379,
-     380,   381,   382,   386,   390,   397,   399,   404,   403,   410,
-     409,   413,   418,   417,   423,   427,   426,   430,   433,   435,
-     439,   441,   443,   446,   448,   450,   453,   455,   457,   459,
-     463,   467,   468,   469,   470,   471,   472,   475,   476
+       0,   374,   374,   376,   380,   384,   385,   389,   388,   394,
+     393,   398,   401,   402,   405,   409,   410,   413,   414,   415,
+     416,   417,   418,   422,   429,   436,   438,   443,   442,   449,
+     448,   452,   457,   456,   462,   466,   465,   469,   472,   474,
+     478,   480,   482,   485,   487,   489,   492,   497,   499,   501,
+     505,   509,   510,   511,   512,   513,   514,   517,   518
 };
 #endif
 
@@ -1771,221 +1804,245 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
+  case 2: /* programa: entrada lista_funciones funcion_main  */
+#line 375 "src/parser/parser.y"
+                        { genera_cod_asm(); }
+#line 1811 "src/parser/parser.tab.c"
+    break;
+
+  case 3: /* programa: entrada funcion_main  */
+#line 377 "src/parser/parser.y"
+                        { genera_cod_asm(); }
+#line 1817 "src/parser/parser.tab.c"
+    break;
+
   case 4: /* entrada: %empty  */
-#line 346 "src/parser/parser.y"
+#line 381 "src/parser/parser.y"
                         { abrir_programa(); }
-#line 1778 "src/parser/parser.tab.c"
+#line 1823 "src/parser/parser.tab.c"
     break;
 
   case 7: /* $@1: %empty  */
-#line 354 "src/parser/parser.y"
+#line 389 "src/parser/parser.y"
                         { registrar_funcion((yyvsp[-3].indice_ts), (yyvsp[-1].indice_ts)); }
-#line 1784 "src/parser/parser.tab.c"
+#line 1829 "src/parser/parser.tab.c"
     break;
 
   case 9: /* $@2: %empty  */
-#line 359 "src/parser/parser.y"
+#line 394 "src/parser/parser.y"
                         { comenzar_main(); }
-#line 1790 "src/parser/parser.tab.c"
+#line 1835 "src/parser/parser.tab.c"
+    break;
+
+  case 14: /* declaracion: VAR ID PUNTO_Y_COMA  */
+#line 406 "src/parser/parser.y"
+                        { declarar((yyvsp[-1].indice_ts)); }
+#line 1841 "src/parser/parser.tab.c"
     break;
 
   case 22: /* sentencia: invocacion PUNTO_Y_COMA  */
-#line 383 "src/parser/parser.y"
+#line 419 "src/parser/parser.y"
                         { (void)(yyvsp[-1].ref); }
-#line 1796 "src/parser/parser.tab.c"
+#line 1847 "src/parser/parser.tab.c"
     break;
 
   case 23: /* asignacion: ID OP_ASIG expresion PUNTO_Y_COMA  */
-#line 387 "src/parser/parser.y"
-                        { colocar(T_ASIG, apilar((yyvsp[-3].indice_ts)), (yyvsp[-1].ref), TIPO_NINGUNO); }
-#line 1802 "src/parser/parser.tab.c"
+#line 423 "src/parser/parser.y"
+                        {
+                            exigir_declarada((yyvsp[-3].indice_ts));
+                            colocar(T_ASIG, apilar((yyvsp[-3].indice_ts)), (yyvsp[-1].ref), TIPO_NINGUNO);
+                        }
+#line 1856 "src/parser/parser.tab.c"
     break;
 
   case 24: /* retorno: RETURN expresion PUNTO_Y_COMA  */
-#line 391 "src/parser/parser.y"
+#line 430 "src/parser/parser.y"
                         {
                             colocar(T_ASIG, apilar(celda_retorno_de(funcion_actual)), (yyvsp[-1].ref), TIPO_NINGUNO);
                             colocar(T_RET, sin_operando(), sin_operando(), TIPO_NINGUNO);
                         }
-#line 1811 "src/parser/parser.tab.c"
-    break;
-
-  case 25: /* salida: WRITE PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA  */
-#line 398 "src/parser/parser.y"
-                        { colocar(T_WRITE, (yyvsp[-2].ref), sin_operando(), TIPO_NINGUNO); }
-#line 1817 "src/parser/parser.tab.c"
-    break;
-
-  case 26: /* salida: WRITE PAR_ABRE CADENA PAR_CIERRA PUNTO_Y_COMA  */
-#line 400 "src/parser/parser.y"
-                        { colocar(T_WRITE_STR, apilar((yyvsp[-2].indice_ts)), sin_operando(), TIPO_NINGUNO); }
-#line 1823 "src/parser/parser.tab.c"
-    break;
-
-  case 27: /* $@3: %empty  */
-#line 404 "src/parser/parser.y"
-                        { abrir_if((yyvsp[-1].cond)); }
-#line 1829 "src/parser/parser.tab.c"
-    break;
-
-  case 29: /* $@4: %empty  */
-#line 410 "src/parser/parser.y"
-                        { abrir_else(); }
-#line 1835 "src/parser/parser.tab.c"
-    break;
-
-  case 30: /* fin_seleccion: ELSE $@4 bloque  */
-#line 412 "src/parser/parser.y"
-                        { cerrar_if(); }
-#line 1841 "src/parser/parser.tab.c"
-    break;
-
-  case 31: /* fin_seleccion: %empty  */
-#line 414 "src/parser/parser.y"
-                        { cerrar_if(); }
-#line 1847 "src/parser/parser.tab.c"
-    break;
-
-  case 32: /* $@5: %empty  */
-#line 418 "src/parser/parser.y"
-                        { apilar_nro(nro_terceto()); }
-#line 1853 "src/parser/parser.tab.c"
-    break;
-
-  case 33: /* iteracion: LOOP $@5 bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA  */
-#line 420 "src/parser/parser.y"
-                        { repetir_si_falso((yyvsp[-2].cond), desapilar()); }
-#line 1859 "src/parser/parser.tab.c"
-    break;
-
-  case 35: /* @6: %empty  */
-#line 427 "src/parser/parser.y"
-                        { (yyval.cond) = preparar_logico((yyvsp[-1].cond), (yyvsp[0].operador)); }
 #line 1865 "src/parser/parser.tab.c"
     break;
 
-  case 36: /* condiciones: condiciones op_logico @6 condicion  */
-#line 429 "src/parser/parser.y"
-                        { (yyval.cond) = combinar_logico((yyvsp[-1].cond), (yyvsp[-2].operador), (yyvsp[0].cond)); }
+  case 25: /* salida: WRITE PAR_ABRE expresion PAR_CIERRA PUNTO_Y_COMA  */
+#line 437 "src/parser/parser.y"
+                        { colocar(T_WRITE, (yyvsp[-2].ref), sin_operando(), TIPO_NINGUNO); }
 #line 1871 "src/parser/parser.tab.c"
     break;
 
-  case 38: /* condicion: expresion op_comparacion expresion  */
-#line 434 "src/parser/parser.y"
-                        { (yyval.cond) = condicion_simple((yyvsp[-1].operador), (yyvsp[-2].ref), (yyvsp[0].ref)); }
+  case 26: /* salida: WRITE PAR_ABRE CADENA PAR_CIERRA PUNTO_Y_COMA  */
+#line 439 "src/parser/parser.y"
+                        { colocar(T_WRITE_STR, apilar((yyvsp[-2].indice_ts)), sin_operando(), TIPO_NINGUNO); }
 #line 1877 "src/parser/parser.tab.c"
     break;
 
-  case 39: /* condicion: PAR_ABRE condiciones PAR_CIERRA  */
-#line 436 "src/parser/parser.y"
-                        { (yyval.cond) = (yyvsp[-1].cond); }
+  case 27: /* $@3: %empty  */
+#line 443 "src/parser/parser.y"
+                        { abrir_if((yyvsp[-1].cond)); }
 #line 1883 "src/parser/parser.tab.c"
     break;
 
-  case 40: /* expresion: expresion OP_SUMA termino  */
-#line 440 "src/parser/parser.y"
-                        { (yyval.ref) = apilar_ti(colocar(T_SUMA, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
+  case 29: /* $@4: %empty  */
+#line 449 "src/parser/parser.y"
+                        { abrir_else(); }
 #line 1889 "src/parser/parser.tab.c"
     break;
 
-  case 41: /* expresion: expresion OP_RESTA termino  */
-#line 442 "src/parser/parser.y"
-                        { (yyval.ref) = apilar_ti(colocar(T_RESTA, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
+  case 30: /* fin_seleccion: ELSE $@4 bloque  */
+#line 451 "src/parser/parser.y"
+                        { cerrar_if(); }
 #line 1895 "src/parser/parser.tab.c"
     break;
 
-  case 43: /* termino: termino OP_MUL factor  */
-#line 447 "src/parser/parser.y"
-                        { (yyval.ref) = apilar_ti(colocar(T_MUL, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
+  case 31: /* fin_seleccion: %empty  */
+#line 453 "src/parser/parser.y"
+                        { cerrar_if(); }
 #line 1901 "src/parser/parser.tab.c"
     break;
 
-  case 44: /* termino: termino OP_DIV factor  */
-#line 449 "src/parser/parser.y"
-                        { (yyval.ref) = apilar_ti(colocar(T_DIV, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
+  case 32: /* $@5: %empty  */
+#line 457 "src/parser/parser.y"
+                        { apilar_nro(nro_terceto()); }
 #line 1907 "src/parser/parser.tab.c"
     break;
 
-  case 46: /* factor: ID  */
-#line 454 "src/parser/parser.y"
-                        { (yyval.ref) = apilar((yyvsp[0].indice_ts)); }
+  case 33: /* iteracion: LOOP $@5 bloque UNTIL PAR_ABRE condiciones PAR_CIERRA PUNTO_Y_COMA  */
+#line 459 "src/parser/parser.y"
+                        { repetir_si_falso((yyvsp[-2].cond), desapilar()); }
 #line 1913 "src/parser/parser.tab.c"
     break;
 
-  case 47: /* factor: CTE  */
-#line 456 "src/parser/parser.y"
-                        { (yyval.ref) = apilar((yyvsp[0].indice_ts)); }
+  case 35: /* @6: %empty  */
+#line 466 "src/parser/parser.y"
+                        { (yyval.cond) = preparar_logico((yyvsp[-1].cond), (yyvsp[0].operador)); }
 #line 1919 "src/parser/parser.tab.c"
     break;
 
-  case 48: /* factor: invocacion  */
-#line 458 "src/parser/parser.y"
-                        { (yyval.ref) = (yyvsp[0].ref); }
+  case 36: /* condiciones: condiciones op_logico @6 condicion  */
+#line 468 "src/parser/parser.y"
+                        { (yyval.cond) = combinar_logico((yyvsp[-1].cond), (yyvsp[-2].operador), (yyvsp[0].cond)); }
 #line 1925 "src/parser/parser.tab.c"
     break;
 
-  case 49: /* factor: PAR_ABRE expresion PAR_CIERRA  */
-#line 460 "src/parser/parser.y"
-                        { (yyval.ref) = (yyvsp[-1].ref); }
+  case 38: /* condicion: expresion op_comparacion expresion  */
+#line 473 "src/parser/parser.y"
+                        { (yyval.cond) = condicion_simple((yyvsp[-1].operador), (yyvsp[-2].ref), (yyvsp[0].ref)); }
 #line 1931 "src/parser/parser.tab.c"
     break;
 
-  case 50: /* invocacion: ID PAR_ABRE expresion PAR_CIERRA  */
-#line 464 "src/parser/parser.y"
-                        { (yyval.ref) = emitir_llamada((yyvsp[-3].indice_ts), (yyvsp[-1].ref)); }
+  case 39: /* condicion: PAR_ABRE condiciones PAR_CIERRA  */
+#line 475 "src/parser/parser.y"
+                        { (yyval.cond) = (yyvsp[-1].cond); }
 #line 1937 "src/parser/parser.tab.c"
     break;
 
-  case 51: /* op_comparacion: OP_MENOR  */
-#line 467 "src/parser/parser.y"
-                                        { (yyval.operador) = T_MENOR; }
+  case 40: /* expresion: expresion OP_SUMA termino  */
+#line 479 "src/parser/parser.y"
+                        { (yyval.ref) = apilar_ti(colocar(T_SUMA, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
 #line 1943 "src/parser/parser.tab.c"
     break;
 
-  case 52: /* op_comparacion: OP_MENOR_IGUAL  */
-#line 468 "src/parser/parser.y"
-                                        { (yyval.operador) = T_MENOR_IGUAL; }
+  case 41: /* expresion: expresion OP_RESTA termino  */
+#line 481 "src/parser/parser.y"
+                        { (yyval.ref) = apilar_ti(colocar(T_RESTA, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
 #line 1949 "src/parser/parser.tab.c"
     break;
 
-  case 53: /* op_comparacion: OP_MAYOR  */
-#line 469 "src/parser/parser.y"
-                                        { (yyval.operador) = T_MAYOR; }
+  case 43: /* termino: termino OP_MUL factor  */
+#line 486 "src/parser/parser.y"
+                        { (yyval.ref) = apilar_ti(colocar(T_MUL, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
 #line 1955 "src/parser/parser.tab.c"
     break;
 
-  case 54: /* op_comparacion: OP_MAYOR_IGUAL  */
-#line 470 "src/parser/parser.y"
-                                        { (yyval.operador) = T_MAYOR_IGUAL; }
+  case 44: /* termino: termino OP_DIV factor  */
+#line 488 "src/parser/parser.y"
+                        { (yyval.ref) = apilar_ti(colocar(T_DIV, (yyvsp[-2].ref), (yyvsp[0].ref), TIPO_RACIONAL)); }
 #line 1961 "src/parser/parser.tab.c"
     break;
 
+  case 46: /* factor: ID  */
+#line 493 "src/parser/parser.y"
+                        {
+                            exigir_declarada((yyvsp[0].indice_ts));
+                            (yyval.ref) = apilar((yyvsp[0].indice_ts));
+                        }
+#line 1970 "src/parser/parser.tab.c"
+    break;
+
+  case 47: /* factor: CTE  */
+#line 498 "src/parser/parser.y"
+                        { (yyval.ref) = apilar((yyvsp[0].indice_ts)); }
+#line 1976 "src/parser/parser.tab.c"
+    break;
+
+  case 48: /* factor: invocacion  */
+#line 500 "src/parser/parser.y"
+                        { (yyval.ref) = (yyvsp[0].ref); }
+#line 1982 "src/parser/parser.tab.c"
+    break;
+
+  case 49: /* factor: PAR_ABRE expresion PAR_CIERRA  */
+#line 502 "src/parser/parser.y"
+                        { (yyval.ref) = (yyvsp[-1].ref); }
+#line 1988 "src/parser/parser.tab.c"
+    break;
+
+  case 50: /* invocacion: ID PAR_ABRE expresion PAR_CIERRA  */
+#line 506 "src/parser/parser.y"
+                        { (yyval.ref) = emitir_llamada((yyvsp[-3].indice_ts), (yyvsp[-1].ref)); }
+#line 1994 "src/parser/parser.tab.c"
+    break;
+
+  case 51: /* op_comparacion: OP_MENOR  */
+#line 509 "src/parser/parser.y"
+                                        { (yyval.operador) = T_MENOR; }
+#line 2000 "src/parser/parser.tab.c"
+    break;
+
+  case 52: /* op_comparacion: OP_MENOR_IGUAL  */
+#line 510 "src/parser/parser.y"
+                                        { (yyval.operador) = T_MENOR_IGUAL; }
+#line 2006 "src/parser/parser.tab.c"
+    break;
+
+  case 53: /* op_comparacion: OP_MAYOR  */
+#line 511 "src/parser/parser.y"
+                                        { (yyval.operador) = T_MAYOR; }
+#line 2012 "src/parser/parser.tab.c"
+    break;
+
+  case 54: /* op_comparacion: OP_MAYOR_IGUAL  */
+#line 512 "src/parser/parser.y"
+                                        { (yyval.operador) = T_MAYOR_IGUAL; }
+#line 2018 "src/parser/parser.tab.c"
+    break;
+
   case 55: /* op_comparacion: OP_IGUAL  */
-#line 471 "src/parser/parser.y"
+#line 513 "src/parser/parser.y"
                                         { (yyval.operador) = T_IGUAL; }
-#line 1967 "src/parser/parser.tab.c"
+#line 2024 "src/parser/parser.tab.c"
     break;
 
   case 56: /* op_comparacion: OP_DISTINTO  */
-#line 472 "src/parser/parser.y"
+#line 514 "src/parser/parser.y"
                                         { (yyval.operador) = T_DISTINTO; }
-#line 1973 "src/parser/parser.tab.c"
+#line 2030 "src/parser/parser.tab.c"
     break;
 
   case 57: /* op_logico: AND  */
-#line 475 "src/parser/parser.y"
+#line 517 "src/parser/parser.y"
                                         { (yyval.operador) = 1; }
-#line 1979 "src/parser/parser.tab.c"
+#line 2036 "src/parser/parser.tab.c"
     break;
 
   case 58: /* op_logico: OR  */
-#line 476 "src/parser/parser.y"
+#line 518 "src/parser/parser.y"
                                         { (yyval.operador) = 0; }
-#line 1985 "src/parser/parser.tab.c"
+#line 2042 "src/parser/parser.tab.c"
     break;
 
 
-#line 1989 "src/parser/parser.tab.c"
+#line 2046 "src/parser/parser.tab.c"
 
       default: break;
     }
@@ -2209,7 +2266,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 479 "src/parser/parser.y"
+#line 521 "src/parser/parser.y"
 
 
 int main(int argc, char **argv) {
