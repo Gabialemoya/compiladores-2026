@@ -1,10 +1,13 @@
 section .data
-x: dd 0
+z: dd 0
 dd 1
-cte_1_6: dd 1
-dd 6
-str2: db "cadena", 0
+cte_1_1: dd 1
+dd 1
+cte_3_4: dd 3
+dd 4
 ter1: dd 0
+dd 1
+ter3: dd 0
 dd 1
 sa_lo: dd 0
 sa_hi: dd 0
@@ -78,34 +81,42 @@ _main:
 ; 0 BI
 t0:
     jmp t1
-; 1 SUMA
+; 1 RESTA
 t1:
     push 3
     push ter1
-    push cte_1_6
-    push cte_1_6
-    call suma_rac
+    push cte_1_1
+    push cte_1_1
+    call resta_rac
     add esp, 16
 ; 2 ASIG
 t2:
     mov eax, [ter1]
-    mov [x], eax
+    mov [z], eax
     mov eax, [ter1+4]
-    mov [x+4], eax
-; 3 WRITE_STR
+    mov [z+4], eax
+; 3 DIV
 t3:
-    push str2
-    push fmt_str
-    call _printf
-    add esp, 8
-; 4 WRITE
+    push 4
+    push ter3
+    push z
+    push cte_3_4
+    call div_rac
+    add esp, 16
+; 4 ASIG
 t4:
-    push dword [x+4]
-    push dword [x]
+    mov eax, [ter3]
+    mov [z], eax
+    mov eax, [ter3+4]
+    mov [z+4], eax
+; 5 WRITE
+t5:
+    push dword [z+4]
+    push dword [z]
     push fmt_rac
     call _printf
     add esp, 12
-t5:
+t6:
     xor eax, eax
     ret
 

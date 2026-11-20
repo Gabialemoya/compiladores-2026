@@ -1,7 +1,4 @@
 NOMBRE | TIPO | VALOR | LONGITUD
-f | racional |  | 1
-x | racional |  | 1
-@ret_f | racional |  | 6
-@tmp0 | racional |  | 5
+z | racional |  | 1
 1/1 | racional | 1/1 | 3
-@tmp1 | racional |  | 5
+3/4 | racional | 3/4 | 3

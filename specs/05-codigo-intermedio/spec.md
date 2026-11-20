@@ -388,6 +388,6 @@ gcc -Wall -Wextra -o compilador src/parser/parser.tab.c src/lexico/lexico.c src/
 | `p3_loop_until` | El `BF` del `until` vuelve al `SUMA` de `acc + n` |
 | `p4_if_else` | El `and` deja dos `BF` hacia el `else`. El `or` tiene un `BI` que salta la comparación derecha, y el `BF` de la izquierda entra en ella |
 | `p5_funcion` | El `BI` inicial va al primer terceto de `main`. `CALL` entra a `cuadrado`, que quedó delante. `return x * x` es `MUL`, `ASIG` a `@ret_cuadrado` y `RET`. Cada llamada copia el retorno a un `@tmpN` distinto |
-| `p6_overflow` | `1/1 / n` es `DIV` antes que la `SUMA`. El `BF` vuelve a ese `DIV` |
+| `ee3_overflow` | En `tests/errores-ejecucion/`. `1/1 / n` es `DIV` antes que la `SUMA`. El `BF` vuelve a ese `DIV`. Compila sin errores |
 | `p7_condiciones` | Los dos `BF` del `and` apuntan al índice que sigue al `WRITE` |
 | `p8_expresiones` | `*` y `/` quedan antes que `+` y `-`. Los paréntesis no agregan terceto |

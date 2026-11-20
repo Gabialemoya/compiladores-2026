@@ -25,7 +25,7 @@
 | D14 | Identificadores | Letras `a`–`z` y `A`–`Z`. El lexema se guarda tal cual |
 | D15 | Comentarios | De línea, `//` hasta fin de línea; el léxico los descarta |
 | D16 | Programa principal | Función de nombre reservado `main`, sin parámetros |
-| D17 | Plataforma destino | — |
+| D17 | Plataforma destino | NASM, x86 de 32 bits, objeto `win32`, enlace con gcc |
 | D18 | Salida | `write` de una expresión racional (formato `numerador/denominador` ya simplificado) o de un literal de texto |
 
 ---
@@ -50,7 +50,7 @@ Columnas de las matrices: `LETRA`, `DIGITO`, `=`, `+`, `-`, `*`, `/`, `<`, `>`, 
 
 `if` · `else` · `loop` · `until` · `var` · `or` · `and` · `write` · `main` · `return`
 
-Se reconocen como identificadores y se resuelven por búsqueda en tabla (`fin_id`), no con estados propios del autómata.
+Se reconocen como identificadores y se resuelven por búsqueda en tabla (`fin_id`)
 
 ---
 
@@ -182,7 +182,6 @@ op_logico           : AND
 
 Convención: `-1` = cierre de token. `-2` = error léxico.
 
-
 | Est | LETRA | DIGITO | = | + | - | * | / | < | > | ; | ( | ) | { | } | " | SPACE | TAB | EOL |
 | --- | ----- | ------ | - | - | - | - | - | - | - | - | - | - | - | - | - | ----- | --- | --- |
 | 0 | 3 | 1 | 4 | 6 | 7 | 8 | 9 | 11 | 14 | 16 | 17 | 18 | 19 | 20 | 21 | 0 | 0 | 0 |
@@ -283,7 +282,6 @@ Convención: `-1` = cierre de token. `-2` = error léxico.
 | 21 | Cadena | -1 | -1 | -1 | -1 | -1 | -1 | -1 | -1 | -1 | -1 | -1 | -1 | -1 | -1 | 300 | -1 | -1 | -1 |
 | 22 | Variable Racional | 20 | -1 | 20 | 20 | 20 | 20 | 20 | 20 | 20 | 20 | 20 | 20 | 20 | 20 | 20 | 20 | 20 | 20 |
 
-
 ---
 
 ## 10. Unreads
@@ -335,190 +333,3 @@ Tabla de símbolos: nombre, tipo, valor (constantes) y longitud. Se exporta a ar
 Ninguno de E1 a E7 ni E9 aborta la compilación: se registran y se sigue leyendo.
 
 ---
-
-## 13. Programas de ejemplo
-
-### 13.1 Correctos
-
-#### P1 — Suma `1/2 + 1/3`
-
-```
-main() {
-    var a;
-    var b;
-    var c;
-    a = 1/2;
-    b = 1/3;
-    c = a + b;
-    write("Resultado");
-    write(c);
-}
-```
-
-Salida esperada:
-
-```
-Resultado
-5/6
-```
-
-#### P2 — Normalización `2/4`
-
-```
-main() {
-    var x;
-    x = 2/4;
-    write(x);
-}
-```
-
-Salida esperada: `1/2`
-
-#### P3 — `loop` … `until`
-
-```
-main() {
-    var n;
-    var acc;
-    n = 0/1;
-    acc = 0/1;
-    loop {
-        acc = acc + n;
-        n = n + 1/1;
-    } until (n > 4/1);
-    write(acc);
-    write(n);
-}
-```
-
-Salida esperada:
-
-```
-10/1
-5/1
-```
-
-#### P4 — `if` / `else`, `and` / `or`
-
-```
-main() {
-    var a;
-    var b;
-    var r;
-    a = 3/4;
-    b = 1/2;
-    if ((a > b) and (a <> 1/1)) {
-        r = 1/1;
-    } else {
-        r = 0/1;
-    }
-    if ((a < 0/1) or (b <= 1/2)) {
-        write(r);
-    } else {
-        write(0/1);
-    }
-}
-```
-
-Salida esperada: `1/1`
-
-#### P5 — Función con `return`
-
-```
-cuadrado(x) {
-    return x * x;
-}
-
-main() {
-    var r;
-    r = cuadrado(3/2);
-    write(r);
-    write(cuadrado(2/3) + 1/9);
-}
-```
-
-Salida esperada:
-
-```
-9/4
-5/9
-```
-
-#### P6 — Pérdida de precisión
-
-```
-main() {
-    var s;
-    var n;
-    s = 0/1;
-    n = 1/1;
-    loop {
-        s = s + 1/1 / n;
-        n = n + 1/1;
-    } until (n > 40/1);
-    write(s);
-}
-```
-
-Salida esperada: una o más advertencias A1 y un racional aproximado ya simplificado. La ejecución continúa.
-
-### 13.2 Errores léxicos y sintácticos
-
-#### E-L1 — Carácter fuera del alfabeto (E1)
-
-```
-main() {
-    var a;
-    a = 1/2;
-    write(a); @
-}
-```
-
-#### E-L2 — Constante mal formada y denominador cero (E2, E3)
-
-```
-main() {
-    var a;
-    var b;
-    var c;
-    a = 3/;
-    b = 4;
-    c = 5/0;
-    write(a);
-}
-```
-
-#### E-S1 — Sentencia mal formada (E5)
-
-```
-main() {
-    var a;
-    a = 1/2
-    if (a > 0/1)
-        write(a);
-}
-```
-
-### 13.3 Errores semánticos
-
-#### E-M1 — Redeclaración y variable no declarada (E6, E7)
-```
-main() {
-    var a;
-    var a;
-    a = 1/2;
-    write(b);
-}
-```
-
-#### E-M2 — Recursión directa (E9)
-
-```
-f(x) {
-    return f(x);
-}
-
-main() {
-    f(1/1);
-}
-```

@@ -209,7 +209,6 @@ Programas correctos:
 .\compilador.exe tests\correctos\p3_loop_until.rg
 .\compilador.exe tests\correctos\p4_if_else.rg
 .\compilador.exe tests\correctos\p5_funcion.rg
-.\compilador.exe tests\correctos\p6_overflow.rg
 .\compilador.exe tests\correctos\p7_condiciones.rg
 .\compilador.exe tests\correctos\p8_expresiones.rg
 ```
@@ -221,7 +220,6 @@ Programas correctos:
 | `p3_loop_until.rg` | `loop … until` |
 | `p4_if_else.rg` | `if … else` con `and` y con `or` |
 | `p5_funcion.rg` | Función con un parámetro y dos llamadas |
-| `p6_overflow.rg` | Ciclo que agranda el denominador |
 | `p7_condiciones.rg` | `if` sin `else` y condición con `and` |
 | `p8_expresiones.rg` | Precedencia de `+ - * /` y paréntesis |
 
@@ -230,17 +228,25 @@ Programas con error:
 ```
 .\compilador.exe tests\errores-lexicos-sintacticos\el1_caracter.rg
 .\compilador.exe tests\errores-lexicos-sintacticos\el2_constante.rg
+.\compilador.exe tests\errores-lexicos-sintacticos\el3_denominador.rg
 .\compilador.exe tests\errores-lexicos-sintacticos\es1_sentencia.rg
 .\compilador.exe tests\errores-semanticos\em1_declaracion.rg
 .\compilador.exe tests\errores-semanticos\em2_recursion.rg
+.\compilador.exe tests\errores-ejecucion\ee1_division_cero.rg
+.\compilador.exe tests\errores-ejecucion\ee2_cero_calculado.rg
+.\compilador.exe tests\errores-ejecucion\ee3_overflow.rg
 ```
 
 | Fuente | Qué se espera |
 | --- | --- |
 | `el1_caracter.rg` | Error léxico E1: un carácter fuera del alfabeto |
 | `el2_constante.rg` | Error léxico E2 y error sintáctico E5 en la misma línea |
+| `el3_denominador.rg` | Error léxico E3 en `5/0` y E5 en la misma línea. El compilador sale con código 1 |
 | `es1_sentencia.rg` | Error sintáctico E5: falta el `;` de la asignación |
 | `em1_declaracion.rg` | E7 en el segundo `var a` y E6 en `write(b)` |
 | `em2_recursion.rg` | E9 en `return f(x)`: llamada recursiva directa |
+| `ee1_division_cero.rg` | Compila. Al ejecutar, `Linea 6: Error: denominador cero` y el proceso sale con código 1 |
+| `ee2_cero_calculado.rg` | Compila. El cero sale de `1/1 - 1/1`. Al ejecutar, `Linea 4: Error: denominador cero` y el proceso sale con código 1 |
+| `ee3_overflow.rg` | Compila. Al ejecutar hay al menos una línea `Advertencia: perdida de precision`. La ejecución sigue y la última línea es un racional simplificado |
 
-Esos dos terminan en compilación con errores. Reducen `programa`, pero `genera_cod_asm` no reescribe `out/programa.asm`.
+`em1_declaracion` y `em2_recursion` terminan en compilación con errores. Reducen `programa`, pero `genera_cod_asm` no reescribe `out/programa.asm`. Los de `tests/errores-ejecucion/` sí dejan assembler: E8 corta la ejecución y A1, en `ee3_overflow`, la deja seguir.

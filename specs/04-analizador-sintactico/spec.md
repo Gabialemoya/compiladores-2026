@@ -384,7 +384,7 @@ gcc src/parser/parser.tab.c src/lexico/lexico.c -o compilador.exe
 
 ### 9.1 Programas correctos
 
-Los siete de `tests/correctos/` deben parsear completos, llegando al axioma y sin errores.
+Los de `tests/correctos/` deben parsear completos, llegando al axioma y sin errores. `tests/errores-ejecucion/ee3_overflow.rg` también: la advertencia es de ejecución.
 
 
 | Caso             | Qué ejercita de la gramática                                               |
@@ -394,7 +394,6 @@ Los siete de `tests/correctos/` deben parsear completos, llegando al axioma y si
 | `p3_loop_until`  | `iteracion` con condición al final                                         |
 | `p4_if_else`     | `seleccion` con `else`, `condiciones` con `and`, `or` y paréntesis         |
 | `p5_funcion`     | `definicion_funcion`, `invocacion` como sentencia y como factor, `retorno` |
-| `p6_overflow`    | Iteración con acumulación                                                  |
 | `p7_condiciones` | `seleccion` sin `else`, condiciones entre paréntesis unidas por `and`      |
 
 

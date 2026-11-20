@@ -364,6 +364,7 @@ El compilador sigue pisando `out/tokens.txt`, `out/ts.txt` y `out/tercetos.txt`.
 - En `parser.y`, `genera_cod_asm` aparece en las dos alternativas de `programa` y en ninguna otra regla.
 - Los programas de `tests/correctos/` terminan en compilación exitosa y dejan `out/programa.asm`.
 - Ese archivo ensambla con NASM y enlaza con `gcc -m32`. El proceso sale con código `0`.
+- `tests/errores-ejecucion/ee3_overflow.rg` también compila y deja assembler. Al ejecutarse imprime A1 y el proceso no se cancela.
 - Los programas que no llegan al axioma no regeneran el assembler.
 - `em1_declaracion` y `em2_recursion` reducen `programa` con `hay_errores` levantado. `genera_cod_asm` vuelve sin escribir y el `out/programa.asm` de una corrida anterior queda como estaba.
 
@@ -376,7 +377,7 @@ Salida del ejecutable:
 | `p3_loop_until` | `10/1` y después `5/1` |
 | `p4_if_else` | `1/1` |
 | `p5_funcion` | `9/4` y después `5/9` |
-| `p6_overflow` | Al menos una línea `Advertencia: perdida de precision`. La última línea es un racional `numerador/denominador` ya simplificado, con denominador positivo. El proceso no se cancela |
+| `ee3_overflow` | En `tests/errores-ejecucion/`. Al menos una línea `Advertencia: perdida de precision`. La última línea es un racional `numerador/denominador` ya simplificado, con denominador positivo. El proceso no se cancela |
 | `p7_condiciones` | Sin líneas. El `and` no entra al `write` |
 | `p8_expresiones` | `-2/3` |
 
