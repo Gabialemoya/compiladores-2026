@@ -9,5 +9,4 @@
 | 13/10/2026 | Grupo | Cada alternativa de §5 lleva el número de regla de Bison, del 1 al 49. | Es el número de `parser.output` y el de la traza (`Reducing stack by rule N`). La 0 es `$accept: programa $end` y no está en la gramática. |
 | 13/10/2026 | Grupo | Cada alternativa de `parser.y` tiene un comentario con la construcción que reconoce. | Las producciones no cambian: siguen siendo las de `01-diseno` §6. |
 | 13/10/2026 | Grupo | Se activó la traza de Bison: `%define parse.trace` y `yydebug = 1` antes de `yyparse`. | Al correr `compilador.exe` se ven los shift y las reducciones por la salida de error. |
-
-
+| 23/11/2026 | Grupo | La spec queda como contrato corto. **Depende de** `specs/01-diseno/spec.md`, `specs/02-tabla-simbolos/spec.md` y `specs/03-analizador-lexico/spec-etapa-2.md`. | Las acciones las llena el código intermedio. El assembler queda fuera de esta etapa. |

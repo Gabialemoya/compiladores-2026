@@ -17,7 +17,7 @@ Las cadenas tienen una longitud máxima de 20 caracteres.
 
 ## Entradas / Salidas
 
-- Entrada:  desde `fin_id`, `fin_cte`, `fin_cadena` (spec 03) y, más adelante, declaraciones (`var`) en el sintáctico.
+- Entrada: desde `fin_id`, `fin_cte`, `fin_cadena` (`specs/03-analizador-lexico/spec.md`) y, más adelante, declaraciones (`var`) en el sintáctico (`specs/04-analizador-sintactico/spec.md`).
 - Salida: estructura en memoria + archivo en `out/`.
 
 ## Reglas y decisiones de diseño
@@ -30,10 +30,3 @@ Las cadenas tienen una longitud máxima de 20 caracteres.
 | longitud | del lexema / de la cadena |
 
 Alcance: una sola tabla global (No existen las variables locales).
-
-Duplicar una **declaración** no lo resuelve esta tabla sola: la detecta la regla semántica R2 (spec 01). El léxico puede registrar el identificador la primera vez que aparece.
-
-## Criterios de aceptación
-
-- Los cuatro campos mínimos están presentes
-- El archivo exportado permite auditar las constantes de los programas de `tests/correctos/`

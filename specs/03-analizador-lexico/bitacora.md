@@ -9,3 +9,4 @@
 | 05/10/2026 | grupo | Añadir `ungetc` en la rama de error léxico (`-2`)     | Evita consumir el carácter causante del error (ej. el `;` tras una mala CTE) |
 | 05/10/2026 | grupo | Normalizar racionales en `fin_cte` antes de TS        | Signo en numerador, simplificación por MCD (Euclides) |
 | 05/10/2026 | grupo | Exportación incondicional de la TS                    | Se exporta `out/ts.txt` haya errores o no, según consigna general 9 |
+| 23/11/2026 | Grupo | Se reescribieron `spec-etapa-1.md` y `spec-etapa-2.md` como contrato corto: listado de tokens, y `yylex` de a un token | |
