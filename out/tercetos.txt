@@ -1,7 +1,2 @@
 #     OPERADOR      OP1                  OP2                  TIPO       LINEA
 0     BI            DIR:1                -                    -          1
-1     RESTA         TS:1/1               TS:1/1               RACIONAL   3
-2     ASIG          TS:z                 TER:1                -          3
-3     DIV           TS:3/4               TS:z                 RACIONAL   4
-4     ASIG          TS:z                 TER:3                -          4
-5     WRITE         TS:z                 -                    -          5
