@@ -27,3 +27,4 @@
 | 09/11/2026 | Grupo | La spec queda como el contrato del generador: terceto, operaciones y qué agrega cada reducción. |                                            |
 | 16/11/2026 | Grupo | Toda la lista se arma con `colocar`| |
 | 18/11/2026 | Grupo | E6, E7 y E9 se informan al reducir. Un `ID` queda declarado por `var` o por ser el parámetro. La llamada a `funcion_actual` es E9. | No cortan el parseo ni la lista de tercetos. El nombre de la función no cuenta como variable. |
+| 23/11/2026 | Grupo | La spec queda como contrato corto. **Depende de** `specs/01-diseno/spec.md`, `specs/02-tabla-simbolos/spec.md` y `specs/04-analizador-sintactico/spec.md`. | El assembler queda para la etapa siguiente. |

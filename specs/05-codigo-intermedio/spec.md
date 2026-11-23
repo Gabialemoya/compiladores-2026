@@ -1,393 +1,103 @@
-# Spec — Código intermedio de RG (tercetos)
+# Spec — Generación de código intermedio de RG
 
-**Depende de:** `specs/01-diseno/spec.md` · `specs/02-tabla-simbolos/spec.md` · `specs/04-analizador-sintactico/spec.md`
-**Produce:** `src/intermedio/` · las acciones semánticas de `parser.y` · `out/tercetos.txt`
+**Depende de:** `specs/01-diseno/spec.md` · `specs/02-tabla-simbolos/spec.md` · `specs/04-analizador-sintactico/spec.md`  
+**Entrada:** el programa reconocido por el parser.  
+**Salida:** una lista de tercetos en `out/tercetos.txt`.
 
-Traduce el programa fuente a una lista de tercetos mientras Bison reduce. Cada reducción anota la operación. No calcula el racional. La lista es el insumo de la generación de assembler.
+## Objetivo
 
----
+Representar las operaciones y el orden de ejecución del programa en una lista de tercetos. Cada terceto indica una acción que las etapas posteriores traducirán a assembler. En esta etapa no se ejecutan las operaciones ni se genera assembler.
 
-## 1. Alcance
+## Cómo se va armando la lista
 
-Durante `yyparse`, las reducciones de §6 apilan un operando, agregan un terceto, completan un salto, o dejan pasar el valor que ya está en la pila. Al terminar `yyparse`, haya errores o no, `main` escribe `out/tercetos.txt`.
+El parser reconoce el programa usando las reglas de la gramática. Cada vez que reconoce una parte que requiere una acción —por ejemplo, una suma, una asignación o una comparación— ejecuta la acción asociada y agrega el terceto correspondiente al final de la lista.
 
-Queda fuera de esta etapa la traducción de cada terceto a assembler.
+La lista se arma en el orden en que se reconocen las operaciones. Si una operación usa el resultado de otra, guarda como operando el número del terceto que produjo ese resultado. Así, cada resultado queda disponible para los tercetos que se agreguen después.
 
----
+Por ejemplo, para `c = a + b * d;`, primero se representa la multiplicación porque tiene mayor precedencia. Después se representa la suma y, por último, la asignación:
 
-## 2. El terceto
+| Orden | Terceto | Qué representa |
+|---|---|---|
+| 1 | `MUL b, d` | Multiplica `b` por `d`; el resultado queda en este terceto |
+| 2 | `SUMA a, resultado del terceto 1` | Suma `a` al resultado anterior |
+| 3 | `ASIG c, resultado del terceto 2` | Guarda el resultado final en `c` |
 
-| Campo | Contenido |
-| --- | --- |
-| `operador` | §2.2 |
-| `op1` | Referencia. En un binario, el operando izquierdo |
-| `op2` | Referencia. En un binario, el operando derecho. Vacía cuando el operador usa un solo operando |
-| `tipo` | `TIPO_RACIONAL`, `TIPO_ENTERO` o `TIPO_NINGUNO` |
-| `linea` | Línea del programa fuente |
+Los índices concretos dependen de los tercetos que ya se hayan agregado al programa, incluido el salto inicial.
 
-El índice no es un campo: es la posición en la lista. Ese índice es el temporario del resultado y, si otro terceto salta hacia aquí, el destino del salto. El temporario tiene dirección estática fija. No hay etiquetas.
+## Qué acción genera cada parte del programa
 
-### 2.1 Referencias
+### Al comenzar el programa y reconocer funciones
 
-| Clase | Apunta a |
-| --- | --- |
-| `REF_VACIO` | Ningún operando |
-| `REF_TS` | Entrada de la tabla de símbolos: variable, constante, cadena, `@ret_` o `@tmpN` |
-| `REF_TER` | Resultado de otro terceto |
-| `REF_DIR` | Índice de terceto. Destino de un salto o entrada de un `CALL` |
+Al comienzo se agrega un salto para que la ejecución entre por `main`, aunque haya definiciones de funciones antes. Cuando el parser reconoce el encabezado de una función, se registra dónde empieza su código y cuál es su parámetro. Al reconocer el encabezado de `main`, se completa el destino del salto inicial.
 
-Una operación aritmética tiene tipo `TIPO_RACIONAL`. Una comparación tiene tipo `TIPO_ENTERO`: su resultado es el entero `0` o `−1`. Asignación, salto, salida, llamada y retorno tienen tipo `TIPO_NINGUNO`.
+Si una llamada aparece antes de que el parser haya reconocido la definición de esa función, se guardan sus referencias y se completan cuando se encuentra el encabezado de la función.
 
-### 2.2 Operadores
+### Al reconocer expresiones, variables y asignaciones
 
-| Grupo | Operadores | op1 | op2 | tipo |
-| --- | --- | --- | --- | --- |
-| Aritméticos | `T_SUMA` `T_RESTA` `T_MUL` `T_DIV` | operando | operando | RACIONAL |
-| Asignación | `T_ASIG` | destino | origen | NINGUNO |
-| Comparación | `T_IGUAL` `T_DISTINTO` `T_MENOR` `T_MENOR_IGUAL` `T_MAYOR` `T_MAYOR_IGUAL` | operando | operando | ENTERO |
-| Saltos | `T_BI` | `REF_DIR` | vacío | NINGUNO |
-| | `T_BF` | condición | `REF_DIR` | NINGUNO |
-| Salida | `T_WRITE` | expresión | vacío | NINGUNO |
-| | `T_WRITE_STR` | `REF_TS` de la cadena | vacío | NINGUNO |
-| Funciones | `T_CALL` | `REF_DIR` de la entrada | vacío | NINGUNO |
-| | `T_RET` | vacío | vacío | NINGUNO |
+Cuando el parser reconoce una operación aritmética completa, agrega un terceto para esa operación. Las operaciones se agregan respetando la precedencia y los paréntesis de la gramática. El resultado de cada operación se identifica por la posición de su terceto.
 
-El destino de `T_BI` y de `T_CALL` ocupa `op1`. El destino de `T_BF` ocupa `op2`. Hasta que se conoce, ese operando queda vacío.
+Al reconocer un identificador o una constante como parte de una expresión, se toma su referencia de la tabla de símbolos; esa referencia por sí sola no genera un terceto. Al reconocer una declaración `var`, se marca la variable como declarada, pero tampoco se agrega un terceto.
 
----
+Después de reconocer el lado derecho de una asignación, se agrega un terceto que indica que su valor debe copiarse a la variable del lado izquierdo.
 
-## 3. Módulo `src/intermedio/`
+### Al reconocer condiciones y saltos
 
-### 3.1 Estructuras — `tercetos.h`
+Cuando se completa una comparación, se agrega un terceto que compara sus dos expresiones. El resultado es `-1` si la condición se cumple y `0` si no se cumple. A continuación se agrega un salto condicional, cuyo destino puede quedar pendiente hasta que se conozca el lugar al que debe llevar.
 
-```c
-#define MAX_TERCETOS 2000
+Para las condiciones unidas con `and` y `or`, se agregan saltos en el momento de pasar de la condición izquierda a la derecha. Esto permite continuar por la rama correcta sin evaluar condiciones que ya no hacen falta.
 
-typedef enum { REF_VACIO = 0, REF_TS, REF_TER, REF_DIR } ClaseRef;
+En un `if`, después de reconocer la condición y antes del bloque, se preparan los destinos de sus saltos. Si hay `else`, al terminar el primer bloque se agrega un salto para evitar que la ejecución entre también en el `else`. Los destinos pendientes se completan cuando el parser reconoce el comienzo o el final de cada bloque.
 
-typedef struct {
-    ClaseRef clase;
-    int      valor;
-} Referencia;
+En `loop ... until`, antes del cuerpo se guarda la posición de su primer terceto. Después de reconocer la condición final, se completan los saltos: si la condición todavía no se cumple, la ejecución vuelve al comienzo del cuerpo; si se cumple, continúa después del ciclo.
 
-/* Saltos de una condición que todavía no tienen destino.
-   Caer al terceto siguiente es verdadero. */
-#define MAX_SALTOS_COND 32
+### Al reconocer salidas y funciones
 
-typedef struct {
-    int falso[MAX_SALTOS_COND];
-    int nfalso;
-    int verdadero[MAX_SALTOS_COND];
-    int nverdadero;
-} Cond;
+Al completar `write(expresión)` se agrega un terceto de salida para el valor. Al completar `write("texto")` se agrega otro tipo de terceto para el texto.
 
-typedef enum { TIPO_NINGUNO = 0, TIPO_RACIONAL, TIPO_ENTERO } TipoResultado;
+Al reconocer una llamada, primero se copia el argumento al espacio del parámetro, luego se agrega el terceto de llamada y, al volver, se copia el valor devuelto a un espacio temporal. Si se reconoce `return expresión`, se copia la expresión al espacio de retorno de la función y se agrega el terceto de retorno.
 
-typedef enum {
-    T_SUMA = 1, T_RESTA, T_MUL, T_DIV,
-    T_ASIG,
-    T_IGUAL, T_DISTINTO, T_MENOR, T_MENOR_IGUAL, T_MAYOR, T_MAYOR_IGUAL,
-    T_BI, T_BF,
-    T_WRITE, T_WRITE_STR,
-    T_CALL, T_RET
-} OperadorTerceto;
+## Acciones dentro de las reglas
 
-typedef struct {
-    OperadorTerceto operador;
-    Referencia      op1;
-    Referencia      op2;
-    TipoResultado   tipo;
-    int             linea;
-} Terceto;
+Las acciones se escriben en las reglas de la gramática. Normalmente se ubican al final de la regla, cuando ya se reconocieron todos los elementos necesarios para agregar el terceto. En las estructuras de control también hay acciones entre partes de una regla: se usan cuando es necesario preparar o completar un salto antes de seguir con el bloque o la condición siguiente.
 
-extern Terceto tercetos[MAX_TERCETOS];
-extern int     cant_tercetos;
+```text
+expresion : expresion OP_SUMA termino
+            { agregar el terceto de suma }
+
+asignacion : ID OP_ASIG expresion PUNTO_Y_COMA
+             { agregar el terceto de asignación }
+
+condicion : expresion op_comparacion expresion
+            { agregar la comparación y su salto condicional }
+
+seleccion : IF PAR_ABRE condiciones PAR_CIERRA
+            { preparar los saltos de la condición }
+            bloque
+          | IF PAR_ABRE condiciones PAR_CIERRA
+            { preparar los saltos de la condición }
+            bloque ELSE
+            { dirigir el caso falso al bloque ELSE }
+            bloque
+            { completar el salto al final }
+
+iteracion : LOOP
+            { guardar el comienzo del cuerpo }
+            bloque UNTIL PAR_ABRE condiciones PAR_CIERRA
+            { completar los saltos para repetir o salir }
 ```
 
-`Cond.falso` guarda índices de `T_BF` con `op2` pendiente. `Cond.verdadero` guarda índices de `T_BI` con `op1` pendiente.
+Los textos entre llaves describen la acción que debe realizarse; no son código C. La gramática completa se mantiene en la spec de diseño.
 
-### 3.2 Operaciones — `tercetos.c`
+## Controles semánticos
 
-Armar cada terceto con `Colocar` y deja el operando en la pila con `Apilar`. Acá hay una sola función que agrega un terceto: `colocar`. Devuelve el índice y avanza el contador. La línea guardada es `linea_anterior`. Si todavía no hay token anterior, usa `linea_actual`.
+Mientras agrega los tercetos, esta etapa verifica que las variables utilizadas estén declaradas, que no se declaren dos veces y que una función no se llame directamente a sí misma. Informa los errores semánticos correspondientes y continúa construyendo la lista.
 
-| En el apunte | Firma | Efecto |
-| --- | --- | --- |
-| `Apilar(id.ptr)` o `Apilar(cte.ptr)` | `Referencia apilar(int ptr)` | Referencia `REF_TS` al índice `ptr` de la tabla de símbolos |
-| `Apilar(Ti)` | `Referencia apilar_ti(int ti)` | Referencia `REF_TER` al terceto `ti` |
-| operando vacío | `Referencia sin_operando(void)` | Referencia `REF_VACIO` |
-| `Colocar(op, Segundo, Tope); i := i+1` | `int colocar(OperadorTerceto op, Referencia op1, Referencia op2, TipoResultado tipo)` | Agrega el terceto. Vale para aritmética, asignación, comparación, salto, salida, llamada y retorno |
-| el `i` antes de incrementarlo | `int nro_terceto(void)` | Índice que tendrá el próximo terceto. No lo agrega |
-| — | `void completar(int t, int destino)` | Escribe `REF_DIR` con `destino`. En un `T_BF` lo escribe en `op2`. En un `T_BI` o un `T_CALL`, en `op1` |
-| — | `void apilar_nro(int nro)` | Apila un número de terceto para un `if` o un `loop`. No es la pila de operandos |
-| — | `int desapilar(void)` | Saca el último número apilado. Con la pila vacía devuelve `-1` |
-| — | `void imprimir_tercetos(const char *ruta)` | Escribe la lista en `ruta` y crea el directorio `out/` si no existe |
+## Resultado y comprobación
 
-`apilar` y `apilar_ti` son las dos formas de `Apilar`: un índice de la tabla o un índice de terceto. En C la clase de la referencia tiene que quedar escrita. `Segundo` y `Tope` del apunte llegan como `op1` y `op2`, porque la pila de operandos es el valor semántico de Bison.
+Al terminar el análisis del programa, la lista se escribe en `out/tercetos.txt`, incluso si se detectaron errores semánticos. Los destinos de saltos y llamadas deben quedar completos cuando se conozca la parte correspondiente del programa.
 
-`completar` no modifica un índice fuera de la lista. `apilar_nro` admite 64 números. Si se llena, informa `Linea N: Error: pila de saltos llena` y levanta `hay_errores`.
-
-Si `colocar` supera `MAX_TERCETOS`, informa `Linea N: Error: lista de tercetos llena`, levanta `hay_errores` y devuelve `-1`.
-
-### 3.3 Estado en `parser.y`
-
-| Estado | Para qué |
-| --- | --- |
-| `funcion_actual` | Nombre de la función cuyo cuerpo se está traduciendo. Arranca en `"main"` |
-| `funciones[]` | Hasta 64 funciones: índice del nombre, índice del parámetro e índice del primer terceto del cuerpo |
-| `pendientes[]` | Hasta 256 llamadas cuya función todavía no apareció: nombre y los tres índices de terceto a completar |
-| `cant_tmp` | Próximo número de `@tmpN` |
-| `salto_entrada` | Índice del `BI` inicial |
-| `pila_cond[]` | Hasta 64 `if` anidados. Cada nivel guarda el `Cond` con los `BF` abiertos |
-| `declarada[]` | Un entero por entrada de la tabla, tamaño `MAX_TS`. `1` si ese `ID` ya se declaró |
-
-La pila de `apilar_nro` guarda, para cada `if`, el índice de su `BI` o `-1` si ese `if` todavía no tiene `else`. También guarda el índice de inicio de cada `loop`.
-
-Si se supera un tope, la acción informa la línea, levanta `hay_errores` y no agrega el elemento que no entra: `demasiadas funciones`, `demasiadas llamadas pendientes`, `condicion demasiado compleja`, `anidamiento de if demasiado profundo` o `pila de saltos llena`.
-
----
-
-## 4. Valor semántico
-
-```
-%code requires {
-    #include "../intermedio/tercetos.h"
-}
-
-%union {
-    int        indice_ts;   /* lo carga yylex para ID, CTE, CADENA */
-    Referencia ref;         /* operando apilado                    */
-    int        operador;    /* op_comparacion y op_logico          */
-    Cond       cond;        /* saltos incompletos de una condición */
-}
-
-%type <ref> expresion termino factor invocacion
-%type <cond> condiciones condicion
-%type <operador> op_comparacion op_logico
-```
-
-`%code requires` copia `Referencia` y `Cond` a `parser.tab.h`. `yylex` sigue cargando solo `indice_ts`.
-
-La pila de operandos es el valor semántico de Bison. Apilar un resultado es devolverlo en `$$`.
-
-Si la alternativa no tiene acción y el símbolo de la izquierda usa el mismo campo que el primero de la derecha, Bison copia con `$$ = $1`. Eso vale para `expresion : termino`, `termino : factor` y `condiciones : condicion`.
-
-| Regla | Acción |
-| --- | --- |
-| `factor : ( expresion )` | `$$ = $2` |
-| `factor : invocacion` | `$$ = $1` |
-| `condicion : ( condiciones )` | `$$ = $2` |
-
----
-
-## 5. Reglas que no agregan un terceto
-
-Listas, `cuerpo`, `bloque`, `declaraciones` y `declaracion` no apilan un operando nuevo ni agregan un terceto. `declaracion` marca el `ID` (§6.9). `var` no agrega la inicialización en `0/1` de R3: ese valor queda para la memoria estática.
-
-`op_comparacion` apila el operador y no agrega terceto:
-
-| Token | Operador |
-| --- | --- |
-| `<` | `T_MENOR` |
-| `<=` | `T_MENOR_IGUAL` |
-| `>` | `T_MAYOR` |
-| `>=` | `T_MAYOR_IGUAL` |
-| `==` | `T_IGUAL` |
-| `<>` | `T_DISTINTO` |
-
-`op_logico` apila `1` para `and` y `0` para `or`.
-
----
-
-## 6. Qué agrega cada reducción
-
-### 6.1 Programa, funciones y `main`
-
-| Regla | Generación |
-| --- | --- |
-| `entrada` vacía | `salto_entrada = colocar(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO)`. Es el terceto 0 |
-| Encabezado `ID ( ID )`, antes del cuerpo | `funcion_actual` pasa a ser ese nombre. Crea `@ret_<nombre>` en la tabla, de tipo racional. La entrada de la función es `nro_terceto()`. La registra junto con su parámetro, declara ese parámetro (§6.9) y completa las llamadas pendientes de ese nombre |
-| Encabezado `MAIN ( )`, antes del cuerpo | `funcion_actual = "main"`. `completar(salto_entrada, nro_terceto())` |
-
-`agregar_ts` devuelve la misma entrada si `@ret_<nombre>` ya estaba. El encabezado de una función y su `return` comparten esa celda. En `main` la celda se crea en el `return`. Si `main` no tiene `return`, la celda no se crea.
-
-Completar una llamada pendiente deja así los tres tercetos:
-
-| Terceto | Qué se escribe |
-| --- | --- |
-| `ASIG` del argumento | `op1` = `apilar(parámetro)` |
-| `CALL` | `completar(call, entrada)` |
-| `ASIG` del retorno | `op2` = `apilar` de `@ret_<nombre>` |
-
-Las funciones quedan delante de `main`, en el orden del fuente. Solo se entra a ellas con `CALL`. El `BI` inicial las salta. `main` es la entrada del programa (D16).
-
-### 6.2 Expresiones
-
-| Regla | Agrega | Apila |
-| --- | --- | --- |
-| `expresion : expresion + termino` | `colocar(T_SUMA, $1, $3, TIPO_RACIONAL)` | `apilar_ti` de ese índice |
-| `expresion : expresion - termino` | `colocar(T_RESTA, $1, $3, TIPO_RACIONAL)` | `apilar_ti` |
-| `expresion : termino` | nada | la referencia del término |
-| `termino : termino * factor` | `colocar(T_MUL, $1, $3, TIPO_RACIONAL)` | `apilar_ti` |
-| `termino : termino / factor` | `colocar(T_DIV, $1, $3, TIPO_RACIONAL)` | `apilar_ti` |
-| `termino : factor` | nada | la referencia del factor |
-| `factor : ID` | nada. Si el `ID` no está declarado, E6 (§6.9) | `apilar($1)` |
-| `factor : CTE` | nada | `apilar($1)` |
-| `factor : ( expresion )` | nada | `$$ = $2` |
-| `factor : invocacion` | nada | `$$ = $1` |
-
-`*` y `/` se agregan al reducir `termino`, antes de que `expresion` agregue `+` o `-`. Los paréntesis dejan en la pila el operando de adentro.
-
-### 6.3 Asignación, salida y retorno
-
-| Regla | Generación |
-| --- | --- |
-| `ID = expresion ;` | Si el `ID` no está declarado, E6 (§6.9). `colocar(T_ASIG, apilar($1), $3, TIPO_NINGUNO)` |
-| `write ( expresion ) ;` | `colocar(T_WRITE, $3, sin_operando(), TIPO_NINGUNO)` |
-| `write ( cadena ) ;` | `colocar(T_WRITE_STR, apilar($3), sin_operando(), TIPO_NINGUNO)` |
-| `return expresion ;` | `colocar(T_ASIG, apilar(@ret_<funcion_actual>), $2, TIPO_NINGUNO)` y después `colocar(T_RET, sin_operando(), sin_operando(), TIPO_NINGUNO)` |
-
-`T_RET` no transporta el racional. El valor de retorno de R11 queda en el `ASIG` previo.
-
-`sentencia : invocacion ;` descarta la referencia. Los tercetos de la llamada ya se agregaron al reducir `invocacion`.
-
-### 6.4 Invocación
-
-`invocacion : ID ( expresion )` crea `@tmpN` en la tabla, de tipo racional, y apila `apilar` de esa celda. `@ret_<funcion>` es una sola celda: el temporal conserva el retorno antes de otra llamada a la misma función. El argumento se traduce al reducir `expresion`, antes de estos tres tercetos. Si el nombre del `ID` es `funcion_actual`, informa E9 (§6.9) y la llamada se emite igual.
-
-| Orden | Función ya registrada | Función todavía no vista |
-| --- | --- | --- |
-| 1 | `colocar(T_ASIG, apilar(parámetro), argumento, TIPO_NINGUNO)` | `colocar(T_ASIG, sin_operando(), argumento, TIPO_NINGUNO)` |
-| 2 | `colocar(T_CALL, sin_operando(), sin_operando(), TIPO_NINGUNO)` y `completar(call, entrada)` | `colocar(T_CALL, sin_operando(), sin_operando(), TIPO_NINGUNO)` |
-| 3 | `colocar(T_ASIG, apilar(@tmpN), apilar(@ret_), TIPO_NINGUNO)` | `colocar(T_ASIG, apilar(@tmpN), sin_operando(), TIPO_NINGUNO)` |
-
-El segundo caso anota los tres índices en `pendientes`. El encabezado de §6.1 los completa. Una llamada que está dentro del cuerpo ya tiene la entrada, porque el encabezado se registró antes.
-
-### 6.5 Comparación
-
-`condicion : expresion op_comparacion expresion` agrega dos tercetos:
-
-1. `cmp = colocar(op, izquierda, derecha, TIPO_ENTERO)`.
-2. `colocar(T_BF, apilar_ti(cmp), sin_operando(), TIPO_NINGUNO)`.
-
-Apila un `Cond` con ese `BF` en `falso`. `verdadero` queda vacío: si la comparación es verdadera, la ejecución sigue en el terceto siguiente.
-
-`condicion : ( condiciones )` apila `$$ = $2`.
-
-### 6.6 `and` y `or`
-
-`and` y `or` no tienen operador propio. La regla es `condiciones : condiciones op_logico condicion`, con una acción intermedia entre el operador y la condición derecha.
-
-| Operador | Antes de la derecha |
-| --- | --- |
-| `and` | `completar` de cada `BI` verdadero de la izquierda con `nro_terceto()`, y vacía esa lista. Los `BF` falsos siguen abiertos |
-| `or` | `colocar(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO)`, lo agrega a los verdaderos, `completar` de los `BF` falsos de la izquierda con `nro_terceto()` y vacía esa lista |
-
-Al juntar:
-
-| Operador | `Cond` resultante |
-| --- | --- |
-| `and` | Falsos de la izquierda más falsos de la derecha. Verdaderos: los de la derecha |
-| `or` | Falsos de la derecha. Verdaderos de la derecha más el `BI` de la izquierda |
-
-En un `and`, si la izquierda es falsa el `BF` no entra en la derecha. En un `or`, si la izquierda es verdadera el `BI` salta la derecha; si es falsa, el `BF` entra en ella.
-
-`if` y `until` completan los saltos que armó la condición. No agregan otro `BF`.
-
-### 6.7 `if` y `else`
-
-| Momento | Generación |
-| --- | --- |
-| Después de `if ( condiciones )`, antes del bloque | `completar` de los verdaderos con `nro_terceto()`. `apilar_nro(-1)`. Guarda el `Cond` con los falsos abiertos |
-| Al ver `else`, antes de su bloque | `desapilar` de la marca `-1`. `colocar(T_BI, sin_operando(), sin_operando(), TIPO_NINGUNO)`. `completar` de los falsos con `nro_terceto()`. `apilar_nro` del índice de ese `BI` |
-| Al cerrar el `if` con `else` | `desapilar` del `BI` y `completar(bi, nro_terceto())` |
-| Al cerrar el `if` sin `else` | `desapilar` devuelve `-1`. `completar` de los falsos con `nro_terceto()` |
-
-Cada `if` anidado guarda su propio `Cond` y su propio número en la pila. Si el destino es el fin del programa, el índice es el que tendría el próximo terceto. No hay una fila con ese número.
-
-### 6.8 `loop … until`
-
-El cuerpo se ejecuta y después se evalúa la condición. Si es falsa, la ejecución vuelve al primer terceto del cuerpo. Si es verdadera, sigue en el terceto que está después del ciclo.
-
-| Momento | Generación |
-| --- | --- |
-| Al ver `LOOP`, antes del bloque | `apilar_nro(nro_terceto())`. Ese número es el primer terceto del cuerpo |
-| Al cerrar `until ( condiciones )` | `inicio = desapilar()`. `completar` de los verdaderos con `nro_terceto()`. `completar` de los falsos con `inicio` |
-
-El `BF` lo agrega la comparación. `until` le escribe el inicio del cuerpo. Un `loop` anidado apila su propio inicio. Esa pila es la misma de §3.2: un `if` interior desapila su marca antes de que el `until` exterior desapile el inicio.
-
-### 6.9 Controles E6, E7 y E9
-
-R1, R2 y R7 están en `01-diseno` §11. El error de cada una, en §12. El léxico inserta cada `ID` la primera vez que aparece: eso no lo declara. Un `ID` queda declarado al reducir `var ID ;` o al ser el parámetro del encabezado `ID ( ID )`. El alcance es el único global de D11: la marca vale para todo el programa. El nombre de la función no se declara como variable. `@ret_`, `@tmpN`, las constantes y las cadenas tampoco.
-
-La línea del mensaje es `linea_anterior`. Si todavía no hay token anterior, es `linea_actual`. El mismo criterio que `colocar`. Ninguno de estos errores aborta el parseo: se levanta `hay_errores` y la reducción sigue. El terceto que esa reducción iba a agregar se agrega igual.
-
-| Regla | Cuándo | Mensaje |
-| --- | --- | --- |
-| R2 / E7 | `var ID`, o el parámetro, y ese índice ya estaba declarado | `Linea N: Error semantico E7: variable redeclarada` |
-| R1 / E6 | `factor : ID`, o el lado izquierdo de `ID = expresion`, y ese índice no está declarado | `Linea N: Error semantico E6: variable no declarada` |
-| R7 / E9 | `invocacion : ID ( expresion )` y el nombre de ese `ID` es `funcion_actual` | `Linea N: Error semantico E9: recursion directa` |
-
-Una invocación no es un uso de variable: no dispara E6. Una llamada a otra función, o a una función que todavía no se vio, no es E9. E9 es solo la llamada directa a la función cuyo cuerpo se está traduciendo.
-
-`em1_declaracion` informa E7 en el segundo `var a` y E6 en `write(b)`. `em2_recursion` informa E9 en `return f(x)`. Los dos terminan en compilación con errores.
-
----
-
-## 7. Formato de `out/tercetos.txt`
-
-Una línea por terceto. `main` lo escribe al terminar `yyparse`, después del veredicto y de `out/ts.txt`.
-
-```
-#     OPERADOR      OP1                  OP2                  TIPO       LINEA
-0     BI            DIR:1                -                    -          1
-1     ASIG          TS:a                 TS:1/2               -          5
-2     ASIG          TS:b                 TS:1/3               -          6
-3     SUMA          TS:a                 TS:b                 RACIONAL   7
-4     ASIG          TS:c                 TER:3                -          7
-5     WRITE_STR     TS:Resultado         -                    -          8
-6     WRITE         TS:c                 -                    -          9
-```
-
-| Clase o tipo | Texto |
-| --- | --- |
-| `REF_TS` | `TS:` y el nombre del símbolo |
-| `REF_TER` | `TER:` y el índice |
-| `REF_DIR` | `DIR:` y el índice |
-| `REF_VACIO` | `-` |
-| `TIPO_RACIONAL` | `RACIONAL` |
-| `TIPO_ENTERO` | `ENTERO` |
-| `TIPO_NINGUNO` | `-` |
-
-Un índice de tabla fuera de rango se imprime `TS:?`. Las columnas quedan alineadas a la izquierda: índice en 6, operador en 14, cada operando en 21, tipo en 11 y la línea al final. Si el archivo no se puede crear, se informa `Error al crear archivo de tercetos.`
-
----
-
-## 8. Compilación
-
-```
-bison -d --report=all -o src/parser/parser.tab.c src/parser/parser.y
-gcc -Wall -Wextra -o compilador src/parser/parser.tab.c src/lexico/lexico.c src/intermedio/tercetos.c
-```
-
----
-
-## 9. Aceptación
-
-- Bison genera el parser sin conflictos.
-- Compila sin warnings con `-Wall -Wextra`.
-- Los programas de `tests/correctos/` terminan en compilación exitosa.
-- Los programas con error léxico, sintáctico o semántico terminan en compilación con errores.
-- `em1_declaracion` informa E7 y E6. `em2_recursion` informa E9. En los dos la lista de tercetos se escribe igual.
-- Ningún `BF`, `BI` ni `CALL` queda con destino vacío. Un destino igual a la cantidad de tercetos es el lugar que sigue al último.
-
-`tests/correctos/p1_suma.rg` produce el listado de §7. `var` no aparece. El `BI` apunta a 1 porque no hay funciones delante de `main`. `c = a + b` agrega primero la `SUMA` y después el `ASIG` de `c` con `TER` de esa suma.
-
-| Programa | Resultado |
-| --- | --- |
-| `p2_normalizar` | `2/4` queda `TS:1/2`, porque el léxico ya normalizó la constante |
-| `p3_loop_until` | El `BF` del `until` vuelve al `SUMA` de `acc + n` |
-| `p4_if_else` | El `and` deja dos `BF` hacia el `else`. El `or` tiene un `BI` que salta la comparación derecha, y el `BF` de la izquierda entra en ella |
-| `p5_funcion` | El `BI` inicial va al primer terceto de `main`. `CALL` entra a `cuadrado`, que quedó delante. `return x * x` es `MUL`, `ASIG` a `@ret_cuadrado` y `RET`. Cada llamada copia el retorno a un `@tmpN` distinto |
-| `ee3_overflow` | En `tests/errores-ejecucion/`. `1/1 / n` es `DIV` antes que la `SUMA`. El `BF` vuelve a ese `DIV`. Compila sin errores |
-| `p7_condiciones` | Los dos `BF` del `and` apuntan al índice que sigue al `WRITE` |
-| `p8_expresiones` | `*` y `/` quedan antes que `+` y `-`. Los paréntesis no agregan terceto |
+- Las operaciones aparecen en el orden definido por la precedencia y los paréntesis.
+- Las asignaciones, comparaciones, salidas y llamadas representan las acciones del fuente.
+- Los saltos de `if`, `else`, `and`, `or` y `loop ... until` llevan al lugar correcto.
+- Los errores de declaración y recursión directa se informan sin detener la construcción de la lista.
+- Los casos de prueba de RG producen los tercetos esperados.
