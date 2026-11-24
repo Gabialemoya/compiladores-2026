@@ -1,12 +1,15 @@
 section .data
-z: dd 0
+a: dd 0
 dd 1
-cte_1_1: dd 1
+b: dd 0
 dd 1
-cte_3_4: dd 3
-dd 4
-ter1: dd 0
+c: dd 0
 dd 1
+cte_1_2: dd 1
+dd 2
+cte_1_3: dd 1
+dd 3
+str5: db "Resultado", 0
 ter3: dd 0
 dd 1
 sa_lo: dd 0
@@ -81,42 +84,46 @@ _main:
 ; 0 BI
 t0:
     jmp t1
-; 1 RESTA
+; 1 ASIG
 t1:
-    push 3
-    push ter1
-    push cte_1_1
-    push cte_1_1
-    call resta_rac
-    add esp, 16
+    mov eax, [cte_1_2]
+    mov [a], eax
+    mov eax, [cte_1_2+4]
+    mov [a+4], eax
 ; 2 ASIG
 t2:
-    mov eax, [ter1]
-    mov [z], eax
-    mov eax, [ter1+4]
-    mov [z+4], eax
-; 3 DIV
+    mov eax, [cte_1_3]
+    mov [b], eax
+    mov eax, [cte_1_3+4]
+    mov [b+4], eax
+; 3 SUMA
 t3:
-    push 4
+    push 7
     push ter3
-    push z
-    push cte_3_4
-    call div_rac
+    push b
+    push a
+    call suma_rac
     add esp, 16
 ; 4 ASIG
 t4:
     mov eax, [ter3]
-    mov [z], eax
+    mov [c], eax
     mov eax, [ter3+4]
-    mov [z+4], eax
-; 5 WRITE
+    mov [c+4], eax
+; 5 WRITE_STR
 t5:
-    push dword [z+4]
-    push dword [z]
+    push str5
+    push fmt_str
+    call _printf
+    add esp, 8
+; 6 WRITE
+t6:
+    push dword [c+4]
+    push dword [c]
     push fmt_rac
     call _printf
     add esp, 12
-t6:
+t7:
     xor eax, eax
     ret
 
