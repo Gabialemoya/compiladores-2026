@@ -1,16 +1,25 @@
 section .data
-a: dd 0
+cuadrado: dd 0
 dd 1
-b: dd 0
+x: dd 0
 dd 1
-c: dd 0
+ret_cuadrado: dd 0
 dd 1
-cte_1_2: dd 1
+r: dd 0
+dd 1
+cte_3_2: dd 3
 dd 2
-cte_1_3: dd 1
+tmp0: dd 0
+dd 1
+cte_2_3: dd 2
 dd 3
-str5: db "Resultado", 0
-ter3: dd 0
+tmp1: dd 0
+dd 1
+cte_1_9: dd 1
+dd 9
+ter1: dd 0
+dd 1
+ter12: dd 0
 dd 1
 sa_lo: dd 0
 sa_hi: dd 0
@@ -83,47 +92,83 @@ extern _exit
 _main:
 ; 0 BI
 t0:
-    jmp t1
-; 1 ASIG
+    jmp t4
+; 1 MUL
 t1:
-    mov eax, [cte_1_2]
-    mov [a], eax
-    mov eax, [cte_1_2+4]
-    mov [a+4], eax
+    push 2
+    push ter1
+    push x
+    push x
+    call mul_rac
+    add esp, 16
 ; 2 ASIG
 t2:
-    mov eax, [cte_1_3]
-    mov [b], eax
-    mov eax, [cte_1_3+4]
-    mov [b+4], eax
-; 3 SUMA
+    mov eax, [ter1]
+    mov [ret_cuadrado], eax
+    mov eax, [ter1+4]
+    mov [ret_cuadrado+4], eax
+; 3 RET
 t3:
-    push 7
-    push ter3
-    push b
-    push a
-    call suma_rac
-    add esp, 16
+    ret
 ; 4 ASIG
 t4:
-    mov eax, [ter3]
-    mov [c], eax
-    mov eax, [ter3+4]
-    mov [c+4], eax
-; 5 WRITE_STR
+    mov eax, [cte_3_2]
+    mov [x], eax
+    mov eax, [cte_3_2+4]
+    mov [x+4], eax
+; 5 CALL
 t5:
-    push str5
-    push fmt_str
-    call _printf
-    add esp, 8
-; 6 WRITE
+    call t1
+; 6 ASIG
 t6:
-    push dword [c+4]
-    push dword [c]
+    mov eax, [ret_cuadrado]
+    mov [tmp0], eax
+    mov eax, [ret_cuadrado+4]
+    mov [tmp0+4], eax
+; 7 ASIG
+t7:
+    mov eax, [tmp0]
+    mov [r], eax
+    mov eax, [tmp0+4]
+    mov [r+4], eax
+; 8 WRITE
+t8:
+    push dword [r+4]
+    push dword [r]
     push fmt_rac
     call _printf
     add esp, 12
-t7:
+; 9 ASIG
+t9:
+    mov eax, [cte_2_3]
+    mov [x], eax
+    mov eax, [cte_2_3+4]
+    mov [x+4], eax
+; 10 CALL
+t10:
+    call t1
+; 11 ASIG
+t11:
+    mov eax, [ret_cuadrado]
+    mov [tmp1], eax
+    mov eax, [ret_cuadrado+4]
+    mov [tmp1+4], eax
+; 12 SUMA
+t12:
+    push 9
+    push ter12
+    push cte_1_9
+    push tmp1
+    call suma_rac
+    add esp, 16
+; 13 WRITE
+t13:
+    push dword [ter12+4]
+    push dword [ter12]
+    push fmt_rac
+    call _printf
+    add esp, 12
+t14:
     xor eax, eax
     ret
 
